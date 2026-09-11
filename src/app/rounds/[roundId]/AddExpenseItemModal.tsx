@@ -1,0 +1,163 @@
+"use client";
+
+import { useActionState, useEffect, useRef, useState } from "react";
+import { Modal } from "@/components/modal/Modal";
+import { PlusIcon } from "@/components/icons/icons";
+import { addExpenseItem, type AddExpenseItemState } from "./actions";
+import type { Payer } from "./queries";
+
+const initialState: AddExpenseItemState = { status: "idle" };
+const NEW_PAYER_VALUE = "__new__";
+
+const fieldClass =
+  "rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary";
+
+export function AddExpenseItemModal({
+  roundId,
+  payers,
+}: {
+  roundId: number;
+  payers: Payer[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [payerSelection, setPayerSelection] = useState<string>(
+    payers[0] ? String(payers[0].id) : NEW_PAYER_VALUE
+  );
+  const formRef = useRef<HTMLFormElement>(null);
+  const [state, formAction, pending] = useActionState(
+    addExpenseItem,
+    initialState
+  );
+
+  useEffect(() => {
+    if (state.status === "success") {
+      formRef.current?.reset();
+      // useActionState's dispatch has no synchronous completion callback — this
+      // effect is the only way to sync the modal's open state to the action result.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOpen(false);
+    }
+  }, [state]);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+      >
+        <PlusIcon className="h-4 w-4" />
+        เพิ่มรายการ
+      </button>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="เพิ่มรายการค่าใช้จ่าย">
+        <form
+          ref={formRef}
+          action={formAction}
+          encType="multipart/form-data"
+          onReset={() =>
+            setPayerSelection(payers[0] ? String(payers[0].id) : NEW_PAYER_VALUE)
+          }
+          className="flex flex-col gap-3"
+        >
+          <input type="hidden" name="roundId" value={roundId} />
+
+          <label className="flex flex-col gap-1 text-sm">
+            รายละเอียด
+            <input
+              name="description"
+              required
+              placeholder="เช่น ซื้อกระดาษ A4"
+              className={fieldClass}
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            ผู้จ่าย/ผู้สำรอง
+            <select
+              name="payerId"
+              value={payerSelection}
+              onChange={(e) => setPayerSelection(e.target.value)}
+              className={fieldClass}
+            >
+              {payers.map((payer) => (
+                <option key={payer.id} value={payer.id}>
+                  {payer.name}
+                </option>
+              ))}
+              <option value={NEW_PAYER_VALUE}>+ เพิ่มชื่อใหม่</option>
+            </select>
+          </label>
+
+          {payerSelection === NEW_PAYER_VALUE && (
+            <label className="flex flex-col gap-1 text-sm">
+              ชื่อผู้จ่ายใหม่
+              <input
+                name="newPayerName"
+                required
+                placeholder="ชื่อ-นามสกุล"
+                className={fieldClass}
+              />
+            </label>
+          )}
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <label className="flex flex-1 flex-col gap-1 text-sm">
+              จำนวนเงิน (บาท)
+              <input
+                name="amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                required
+                className={fieldClass}
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1 text-sm">
+              วันที่จ่าย
+              <input
+                name="expenseDate"
+                type="date"
+                required
+                defaultValue={new Date().toISOString().slice(0, 10)}
+                className={fieldClass}
+              />
+            </label>
+          </div>
+
+          <label className="flex flex-col gap-1 text-sm">
+            แนบบิล/สลิป (เลือกได้หลายไฟล์ สูงสุด 10 ไฟล์)
+            <input
+              name="receipts"
+              type="file"
+              multiple
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              className="text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-foreground/5 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground hover:file:bg-foreground/10"
+            />
+          </label>
+
+          {state.status === "error" && (
+            <p className="text-sm text-destructive">{state.message}</p>
+          )}
+
+          <div className="mt-2 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-md px-3 py-1.5 text-sm hover:bg-foreground/5"
+            >
+              ยกเลิก
+            </button>
+            <button
+              type="submit"
+              disabled={pending}
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {pending ? "กำลังบันทึก..." : "บันทึกรายการ"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </>
+  );
+}

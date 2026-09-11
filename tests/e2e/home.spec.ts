@@ -1,7 +1,9 @@
 import { test, expect } from "@playwright/test";
 
-test("homepage renders the getting-started heading", async ({ page }) => {
+test("homepage renders the round list heading", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByText(/page\.tsx/i)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "รายการรอบเบิก-จ่าย" })
+  ).toBeVisible();
 });

@@ -1,0 +1,44 @@
+// Schema documentation for the expense reserve/reimbursement system.
+// Migrated to SQLite via requirements/database.sql — keep both in sync.
+
+Table payers {
+  id integer [pk, increment]
+  name text [not null, unique]
+  created_at text [not null, default: `datetime('now')`]
+
+  Note: 'Lookup list of people who can pay/advance money for an expense item. Populated via find-or-create from the expense item form, no dedicated CRUD screen.'
+}
+
+Table expense_rounds {
+  id integer [pk, increment]
+  name text [not null, note: 'e.g. "รอบเดือนกันยายน 2569" — also doubles as the period label']
+  note text
+  status text [not null, default: 'in_progress', note: 'in_progress | completed | cancelled']
+  created_at text [not null, default: `datetime('now')`]
+
+  Note: 'One reserve/reimbursement cycle. No stored reserve amount by design — only the total spent per payer is tracked.'
+}
+
+Table expense_items {
+  id integer [pk, increment]
+  round_id integer [not null, ref: > expense_rounds.id]
+  payer_id integer [not null, ref: > payers.id]
+  description text [not null]
+  amount_satang integer [not null, note: 'baht * 100, integer to avoid float rounding on SUM']
+  expense_date text [not null]
+  created_at text [not null, default: `datetime('now')`]
+}
+
+Table expense_item_receipts {
+  id integer [pk, increment]
+  item_id integer [not null, ref: > expense_items.id]
+  blob blob [not null, note: 'bill/slip image or PDF, stored inline']
+  mime_type text [not null]
+  filename text
+  created_at text [not null, default: `datetime('now')`]
+
+  Note: 'One expense item can have multiple attached receipts (photos/slips/PDFs).'
+}
+
+Ref: expense_items.round_id > expense_rounds.id [delete: cascade]
+Ref: expense_item_receipts.item_id > expense_items.id [delete: cascade]

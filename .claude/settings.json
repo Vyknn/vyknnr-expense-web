@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Bash(npx shadcn@latest init --help)",
+      "Bash(yarn tsc *)"
+    ]
+  }
+}
