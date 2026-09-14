@@ -1,31 +1,38 @@
-import { Roboto } from "next/font/google";
-import Link from "next/link";
-import { WalletIcon } from "@/components/icons/icons";
+import { Noto_Sans_Thai } from "next/font/google";
+import type { CurrentUser } from "@/features/auth/services/auth";
+import { AppNavigation } from "./AppNavigation";
 
-const roboto = Roboto({
-  variable: "--font-roboto",
-  subsets: ["latin"],
+const notoSansThai = Noto_Sans_Thai({
+  variable: "--font-noto-sans-thai",
+  subsets: ["thai"],
   weight: ["400", "500", "700"],
 });
 
-export function RootLayout({ children }: { children: React.ReactNode }) {
+export function RootLayout({
+  children,
+  user,
+}: {
+  children: React.ReactNode;
+  user: CurrentUser | null;
+}) {
   return (
-    <html lang="th" className={`${roboto.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">
-        <header className="sticky top-0 z-10 border-b border-border bg-card shadow-[0_2px_5px_rgba(0,0,0,0.06)]">
-          <div className="mx-auto flex w-full max-w-4xl items-center gap-2 px-4 py-3 sm:px-6">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-sm font-semibold"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <WalletIcon className="h-4 w-4" />
-              </span>
-              ระบบเบิก-จ่ายค่าใช้จ่าย
-            </Link>
+    <html lang="th" className={`${notoSansThai.variable} h-full antialiased`}>
+      <body className="min-h-full bg-background">
+        {user && !user.mustChangePassword ? (
+          <div className="flex min-h-screen">
+            <AppNavigation user={user} />
+            <main className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
+              <div className="hidden h-16 items-center justify-end border-b border-border bg-card px-8 lg:flex">
+                <span className="rounded-full bg-muted-surface px-3 py-1 text-xs font-medium text-muted">
+                  {user.displayName} · {user.email}
+                </span>
+              </div>
+              {children}
+            </main>
           </div>
-        </header>
-        <main className="flex flex-1 flex-col">{children}</main>
+        ) : (
+          <main className="flex min-h-screen">{children}</main>
+        )}
       </body>
     </html>
   );

@@ -1,12 +1,12 @@
 // Schema documentation for the expense reserve/reimbursement system.
-// Migrated to SQLite via requirements/database.sql — keep both in sync.
+// Runtime applies src/db/migrations; requirements/database.sql is the synchronized full-schema reference.
 
 Table payers {
   id integer [pk, increment]
   name text [not null, unique]
   created_at text [not null, default: `datetime('now')`]
 
-  Note: 'Lookup list of people who can pay/advance money for an expense item. Populated via find-or-create from the expense item form, no dedicated CRUD screen.'
+  Note: 'Lookup list of people who can pay/advance money for an expense item. Managed from Settings and selectable from the expense item form.'
 }
 
 Table expense_rounds {
@@ -19,12 +19,20 @@ Table expense_rounds {
   Note: 'One reserve/reimbursement cycle. No stored reserve amount by design — only the total spent per payer is tracked.'
 }
 
+Table expense_categories {
+  id integer [pk, increment]
+  name text [not null, unique]
+  created_at text [not null, default: `datetime('now')`]
+
+  Note: 'Lookup list of expense categories managed from Settings. Deleting a category keeps existing expense records with no category assigned.'
+}
+
 Table expense_items {
   id integer [pk, increment]
   round_id integer [not null, ref: > expense_rounds.id]
-  payer_id integer [not null, ref: > payers.id]
+  payer_id integer [ref: > payers.id, note: 'Optional after deleting a payer; the expense record remains with no payer assigned.']
+  category_id integer [ref: > expense_categories.id, note: 'Optional after deleting a category; the expense record remains with no category assigned.']
   description text [not null]
-  category text [not null, default: 'other', note: 'food | travel | accommodation | supplies | advance | other']
   amount_satang integer [not null, note: 'baht * 100, integer to avoid float rounding on SUM']
   expense_date text [not null]
   created_at text [not null, default: `datetime('now')`]
@@ -33,13 +41,39 @@ Table expense_items {
 Table expense_item_receipts {
   id integer [pk, increment]
   item_id integer [not null, ref: > expense_items.id]
-  blob blob [not null, note: 'bill/slip image or PDF, stored inline']
+  blob blob [not null, note: 'JPEG-compressed bill/slip image, stored inline; legacy PDF rows may remain']
   mime_type text [not null]
   filename text
   created_at text [not null, default: `datetime('now')`]
 
-  Note: 'One expense item can have multiple attached receipts (photos/slips/PDFs).'
+  Note: 'One expense item can have multiple attached receipts. New uploads accept JPEG, PNG, or WebP then store a compressed JPEG; legacy PDF rows remain readable.'
+}
+
+Table users {
+  id integer [pk, increment]
+  email text [not null, unique, note: 'normalized lowercase email']
+  display_name text [not null]
+  password_hash text [not null, note: 'scrypt hash; raw passwords are never stored']
+  role text [not null, note: 'admin | editor | viewer']
+  must_change_password boolean [not null, default: true]
+  is_active boolean [not null, default: true]
+  failed_login_attempts integer [not null, default: 0]
+  locked_until text
+  created_at text [not null, default: `datetime('now')`]
+  updated_at text [not null, default: `datetime('now')`]
+
+  Note: 'Shared-team account. Admin provisions accounts; users are deactivated rather than deleted.'
+}
+
+Table sessions {
+  id integer [pk, increment]
+  user_id integer [not null, ref: > users.id]
+  token_hash text [not null, unique, note: 'SHA-256 of opaque httpOnly cookie token']
+  expires_at text [not null]
+  created_at text [not null, default: `datetime('now')`]
+  last_used_at text [not null, default: `datetime('now')`]
 }
 
 Ref: expense_items.round_id > expense_rounds.id [delete: cascade]
 Ref: expense_item_receipts.item_id > expense_items.id [delete: cascade]
+Ref: sessions.user_id > users.id [delete: cascade]

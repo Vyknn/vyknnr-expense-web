@@ -13,8 +13,8 @@ here).
   Prop shapes and data attributes follow Base UI's API (e.g. `data-slot`, Base UI's own
   open/state data attributes), so don't copy Radix-specific patterns from memory or from
   shadcn examples written against Radix.
-- **hugeicons** (`@hugeicons/react` + `@hugeicons/core-free-icons`) is the icon set — not
-  lucide-react. Import icons from `@hugeicons/core-free-icons`.
+- **Tabler Icons** (`@tabler/icons-react`) is the icon set. Import icons directly from the
+  package; mark decorative icon SVGs with `aria-hidden`.
 - **class-variance-authority (cva)** defines variant/size APIs on every primitive; **cn**
   (`src/lib/utils.ts`, re-exported from the `cn` package) merges class names — always compose
   new variants through `cva` + `cn`, never string-concatenate classes.

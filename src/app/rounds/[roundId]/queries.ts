@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { ExpenseCategory } from "@/lib/expense-category";
 import type { RoundStatus } from "@/lib/round-status";
+import { requireUser } from "@/features/auth/services/auth";
 
 export type Round = {
   id: number;
@@ -14,11 +14,12 @@ export type Round = {
 export type ExpenseItem = {
   id: number;
   description: string;
-  category: ExpenseCategory;
+  categoryId: number | null;
+  categoryName: string | null;
   amountSatang: number;
   expenseDate: string;
-  payerId: number;
-  payerName: string;
+  payerId: number | null;
+  payerName: string | null;
 };
 
 export type Receipt = {
@@ -28,8 +29,8 @@ export type Receipt = {
 };
 
 export type PayerSummary = {
-  payerId: number;
-  payerName: string;
+  payerId: number | null;
+  payerName: string | null;
   totalSatang: number;
 };
 
@@ -38,7 +39,13 @@ export type Payer = {
   name: string;
 };
 
-export function getRound(roundId: number): Round | undefined {
+export type ExpenseCategory = {
+  id: number;
+  name: string;
+};
+
+export async function getRound(roundId: number): Promise<Round | undefined> {
+  await requireUser();
   return db
     .prepare(
       `SELECT id, name, note, status, created_at AS createdAt FROM expense_rounds WHERE id = ?`
@@ -46,19 +53,22 @@ export function getRound(roundId: number): Round | undefined {
     .get(roundId) as Round | undefined;
 }
 
-export function getExpenseItems(roundId: number): ExpenseItem[] {
+export async function getExpenseItems(roundId: number): Promise<ExpenseItem[]> {
+  await requireUser();
   return db
     .prepare(
       `SELECT
          i.id AS id,
          i.description AS description,
-         i.category AS category,
+         i.category_id AS categoryId,
+         c.name AS categoryName,
          i.amount_satang AS amountSatang,
          i.expense_date AS expenseDate,
          i.payer_id AS payerId,
          p.name AS payerName
        FROM expense_items i
-       JOIN payers p ON p.id = i.payer_id
+       LEFT JOIN payers p ON p.id = i.payer_id
+       LEFT JOIN expense_categories c ON c.id = i.category_id
        WHERE i.round_id = ?
        ORDER BY i.expense_date DESC, i.id DESC`
     )
@@ -66,7 +76,8 @@ export function getExpenseItems(roundId: number): ExpenseItem[] {
 }
 
 /** All receipts for every item in a round, in one query — avoids N+1 per-item lookups. */
-export function getReceiptsForRound(roundId: number): Receipt[] {
+export async function getReceiptsForRound(roundId: number): Promise<Receipt[]> {
+  await requireUser();
   return db
     .prepare(
       `SELECT r.id AS id, r.item_id AS itemId, r.mime_type AS mimeType
@@ -78,22 +89,31 @@ export function getReceiptsForRound(roundId: number): Receipt[] {
     .all(roundId) as Receipt[];
 }
 
-export function getPayerSummary(roundId: number): PayerSummary[] {
+export async function getPayerSummary(roundId: number): Promise<PayerSummary[]> {
+  await requireUser();
   return db
     .prepare(
       `SELECT
-         p.id AS payerId,
+         i.payer_id AS payerId,
          p.name AS payerName,
          SUM(i.amount_satang) AS totalSatang
        FROM expense_items i
-       JOIN payers p ON p.id = i.payer_id
+       LEFT JOIN payers p ON p.id = i.payer_id
        WHERE i.round_id = ?
-       GROUP BY p.id
+       GROUP BY i.payer_id
        ORDER BY totalSatang DESC`
     )
     .all(roundId) as PayerSummary[];
 }
 
-export function getAllPayers(): Payer[] {
+export async function getAllPayers(): Promise<Payer[]> {
+  await requireUser();
   return db.prepare(`SELECT id, name FROM payers ORDER BY name ASC`).all() as Payer[];
+}
+
+export async function getAllExpenseCategories(): Promise<ExpenseCategory[]> {
+  await requireUser();
+  return db
+    .prepare(`SELECT id, name FROM expense_categories ORDER BY name COLLATE NOCASE ASC`)
+    .all() as ExpenseCategory[];
 }

@@ -17,8 +17,26 @@
 - SQLite — local dev database (`src/db/database.sqlite3`, gitignored)
 - better-sqlite3 — synchronous SQLite driver, accessed only via the singleton connection in
   `src/lib/db.ts`
-- Schema defined in DBML (`requirements/database.dbml`), migrated to SQLite via
-  `requirements/database.sql`
+- Schema documented in DBML (`requirements/database.dbml`); runtime applies ordered SQL migrations
+  from `src/db/migrations/` through the `schema_migrations` ledger in `src/lib/db.ts`.
+  `requirements/database.sql` is the synchronized full-schema reference.
+
+## Authentication & authorization
+
+- Native local email/password authentication — no OAuth/OIDC provider and no public registration
+- Passwords use Node `crypto.scrypt` with a random salt; plaintext passwords are never stored
+- Opaque, random session tokens live in an `httpOnly`, `sameSite=lax` cookie; SQLite stores only their SHA-256 hashes and enforces a seven-day expiry
+- Bootstrap the first Admin only when no users exist with `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD`; inject production values from Secret Manager, never source control
+- Roles: `admin`, `editor`, `viewer`. Server Actions and route handlers enforce RBAC; UI gating is only a usability layer
+- Admin provisions members with temporary passwords, changes roles, and activates/deactivates accounts. Every role/status change revokes target sessions; at least one active Admin must remain
+
+## Image processing
+
+- Sharp — server-side receipt image resize/compression in `src/lib/receipt-image.ts`, called only from Server Actions
+
+## Icons
+
+- Tabler Icons React (`@tabler/icons-react`) — shared UI icon set, imported directly in application components
 
 ## Testing
 
@@ -47,3 +65,4 @@
 - Docker — multi-stage build (`deps` → `builder` → `runner`) on `node:22-alpine`,
   `next.config.ts` `output: 'standalone'`
 - GitHub Actions — CI/CD (`ci-cd.yml`: lint → typecheck → build, `tests.yml`: Jest)
+- Cloud Run + local SQLite requires a single instance (`--max-instances=1`) to avoid split-brain data and sessions. This is a deployment-capacity decision; do not change it without explicit approval. Use Secret Manager for `INITIAL_ADMIN_*` values.

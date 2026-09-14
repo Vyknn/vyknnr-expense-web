@@ -2,27 +2,28 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/modal/Modal";
-import { PlusIcon } from "@/components/icons/icons";
-import { expenseCategories } from "@/lib/expense-category";
+import { IconPlus } from "@tabler/icons-react";
 import { addExpenseItem, type AddExpenseItemState } from "./actions";
-import type { Payer } from "./queries";
+import type { ExpenseCategory, Payer } from "./queries";
 
 const initialState: AddExpenseItemState = { status: "idle" };
-const NEW_PAYER_VALUE = "__new__";
+const EMPTY_PAYER_VALUE = "";
 
 const fieldClass =
-  "rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary";
+  "rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/20";
 
 export function AddExpenseItemModal({
   roundId,
   payers,
+  categories,
 }: {
   roundId: number;
   payers: Payer[];
+  categories: ExpenseCategory[];
 }) {
   const [open, setOpen] = useState(false);
   const [payerSelection, setPayerSelection] = useState<string>(
-    payers[0] ? String(payers[0].id) : NEW_PAYER_VALUE
+    payers[0] ? String(payers[0].id) : EMPTY_PAYER_VALUE
   );
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
@@ -45,9 +46,9 @@ export function AddExpenseItemModal({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
       >
-        <PlusIcon className="h-4 w-4" />
+        <IconPlus aria-hidden className="h-4 w-4" />
         เพิ่มรายการ
       </button>
 
@@ -57,7 +58,7 @@ export function AddExpenseItemModal({
           action={formAction}
           encType="multipart/form-data"
           onReset={() =>
-            setPayerSelection(payers[0] ? String(payers[0].id) : NEW_PAYER_VALUE)
+            setPayerSelection(payers[0] ? String(payers[0].id) : EMPTY_PAYER_VALUE)
           }
           className="flex flex-col gap-3"
         >
@@ -75,10 +76,11 @@ export function AddExpenseItemModal({
 
           <label className="flex flex-col gap-1 text-sm">
             ประเภทค่าใช้จ่าย
-            <select name="category" defaultValue="other" required className={fieldClass}>
-              {expenseCategories.map((category) => (
-                <option key={category.value} value={category.value}>
-                  {category.label}
+            <select name="categoryId" defaultValue="" className={fieldClass}>
+              <option value="">ไม่ระบุประเภท</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
                 </option>
               ))}
             </select>
@@ -92,26 +94,14 @@ export function AddExpenseItemModal({
               onChange={(e) => setPayerSelection(e.target.value)}
               className={fieldClass}
             >
+              <option value={EMPTY_PAYER_VALUE}>ไม่ระบุผู้จ่าย</option>
               {payers.map((payer) => (
                 <option key={payer.id} value={payer.id}>
                   {payer.name}
                 </option>
               ))}
-              <option value={NEW_PAYER_VALUE}>+ เพิ่มชื่อใหม่</option>
             </select>
           </label>
-
-          {payerSelection === NEW_PAYER_VALUE && (
-            <label className="flex flex-col gap-1 text-sm">
-              ชื่อผู้จ่ายใหม่
-              <input
-                name="newPayerName"
-                required
-                placeholder="ชื่อ-นามสกุล"
-                className={fieldClass}
-              />
-            </label>
-          )}
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <label className="flex flex-1 flex-col gap-1 text-sm">
@@ -138,12 +128,12 @@ export function AddExpenseItemModal({
           </div>
 
           <label className="flex flex-col gap-1 text-sm">
-            แนบบิล/สลิป (เลือกได้หลายไฟล์ สูงสุด 10 ไฟล์)
+            แนบบิล/สลิป (JPG, PNG, WEBP สูงสุด 10 รูป รูปละไม่เกิน 5MB)
             <input
               name="receipts"
               type="file"
               multiple
-              accept="image/jpeg,image/png,image/webp,application/pdf"
+              accept="image/jpeg,image/png,image/webp"
               className="text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-foreground/5 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground hover:file:bg-foreground/10"
             />
           </label>
@@ -156,14 +146,14 @@ export function AddExpenseItemModal({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-md px-3 py-1.5 text-sm hover:bg-foreground/5"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
             >
               ยกเลิก
             </button>
             <button
               type="submit"
               disabled={pending}
-              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none disabled:opacity-50"
             >
               {pending ? "กำลังบันทึก..." : "บันทึกรายการ"}
             </button>

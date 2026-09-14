@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getCurrentUser } from "@/features/auth/services/auth";
 import { RootLayout } from "@/components/layouts/RootLayout";
 import "@/styles/globals.css";
 
@@ -7,6 +8,7 @@ export const metadata: Metadata = {
   description: "บันทึกและสรุปยอดค่าใช้จ่ายรายรอบ พร้อมแนบบิล/สลิป",
 };
 
-export default function Layout({ children }: LayoutProps<"/">) {
-  return <RootLayout>{children}</RootLayout>;
+export default async function Layout({ children }: LayoutProps<"/">) {
+  const user = await getCurrentUser();
+  return <RootLayout user={user}>{children}</RootLayout>;
 }

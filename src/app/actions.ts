@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { isRoundStatus } from "@/lib/round-status";
+import { requireRole, requireUser } from "@/features/auth/services/auth";
 
 export type CreateRoundState =
   | { status: "idle" }
@@ -13,6 +14,7 @@ export async function createRound(
   _prevState: CreateRoundState,
   formData: FormData
 ): Promise<CreateRoundState> {
+  requireRole(await requireUser(), "admin", "editor");
   const name = String(formData.get("name") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();
 
@@ -37,6 +39,7 @@ export async function deleteRound(
   _prevState: DeleteRoundState,
   formData: FormData
 ): Promise<DeleteRoundState> {
+  requireRole(await requireUser(), "admin", "editor");
   const roundId = Number(formData.get("roundId"));
   const redirectTo = String(formData.get("redirectTo") ?? "");
 
@@ -44,7 +47,10 @@ export async function deleteRound(
     return { status: "error", message: "ไม่พบรอบที่ต้องการลบ" };
   }
 
-  db.prepare(`DELETE FROM expense_rounds WHERE id = ?`).run(roundId);
+  const result = db.prepare(`DELETE FROM expense_rounds WHERE id = ?`).run(roundId);
+  if (result.changes === 0) {
+    return { status: "error", message: "ไม่พบรอบที่ต้องการลบ" };
+  }
 
   revalidatePath("/");
 
@@ -59,6 +65,44 @@ export async function deleteRound(
   return { status: "success" };
 }
 
+export type UpdateRoundDetailsState =
+  | { status: "idle" }
+  | { status: "error"; message: string }
+  | { status: "success" };
+
+export async function updateRoundDetails(
+  _prevState: UpdateRoundDetailsState,
+  formData: FormData
+): Promise<UpdateRoundDetailsState> {
+  requireRole(await requireUser(), "admin", "editor");
+  const roundId = Number(formData.get("roundId"));
+  const name = String(formData.get("name") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+  const status = String(formData.get("status") ?? "");
+
+  if (!Number.isInteger(roundId) || roundId <= 0) {
+    return { status: "error", message: "ไม่พบรอบที่ต้องการแก้ไข" };
+  }
+  if (!name) {
+    return { status: "error", message: "กรุณาระบุชื่อรอบ" };
+  }
+  if (!isRoundStatus(status)) {
+    return { status: "error", message: "สถานะไม่ถูกต้อง" };
+  }
+
+  const result = db.prepare(
+    `UPDATE expense_rounds SET name = ?, note = ?, status = ? WHERE id = ?`
+  ).run(name, note || null, status, roundId);
+  if (result.changes === 0) {
+    return { status: "error", message: "ไม่พบรอบที่ต้องการแก้ไข" };
+  }
+
+  revalidatePath("/");
+  revalidatePath(`/rounds/${roundId}`);
+  revalidatePath(`/rounds/${roundId}/summary`);
+  return { status: "success" };
+}
+
 export type UpdateRoundStatusState =
   | { status: "idle" }
   | { status: "error"; message: string }
@@ -68,6 +112,7 @@ export async function updateRoundStatus(
   _prevState: UpdateRoundStatusState,
   formData: FormData
 ): Promise<UpdateRoundStatusState> {
+  requireRole(await requireUser(), "admin", "editor");
   const roundId = Number(formData.get("roundId"));
   const newStatus = String(formData.get("roundStatus") ?? "");
 
@@ -78,12 +123,16 @@ export async function updateRoundStatus(
     return { status: "error", message: "สถานะไม่ถูกต้อง" };
   }
 
-  db.prepare(`UPDATE expense_rounds SET status = ? WHERE id = ?`).run(
+  const result = db.prepare(`UPDATE expense_rounds SET status = ? WHERE id = ?`).run(
     newStatus,
     roundId
   );
+  if (result.changes === 0) {
+    return { status: "error", message: "ไม่พบรอบที่ต้องการอัปเดต" };
+  }
 
   revalidatePath("/");
   revalidatePath(`/rounds/${roundId}`);
+  revalidatePath(`/rounds/${roundId}/summary`);
   return { status: "success" };
 }

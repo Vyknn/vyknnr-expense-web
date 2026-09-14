@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { RoundStatus } from "@/lib/round-status";
+import { requireUser } from "@/features/auth/services/auth";
 
 export type RoundListItem = {
   id: number;
@@ -12,7 +13,8 @@ export type RoundListItem = {
   totalSatang: number;
 };
 
-export function getRounds(): RoundListItem[] {
+export async function getRounds(): Promise<RoundListItem[]> {
+  await requireUser();
   const rows = db
     .prepare(
       `SELECT

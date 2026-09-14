@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/modal/Modal";
-import { CloseIcon, ReceiptIcon } from "@/components/icons/icons";
+import { IconReceipt, IconX } from "@tabler/icons-react";
 import type { Receipt } from "./queries";
 
 export function ReceiptGalleryModal({
@@ -30,7 +30,7 @@ export function ReceiptGalleryModal({
   }, [activeReceiptId]);
 
   if (receipts.length === 0) {
-    return <span className="text-sm text-muted">ไม่มีใบเสร็จ</span>;
+    return null;
   }
 
   return (
@@ -38,10 +38,10 @@ export function ReceiptGalleryModal({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+        className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary-tint hover:no-underline focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
       >
-        <ReceiptIcon className="h-3.5 w-3.5" />
-        ดูใบเสร็จ ({receipts.length})
+        <IconReceipt aria-hidden className="h-3.5 w-3.5" />
+        ใบเสร็จ ({receipts.length})
       </button>
 
       <Modal
@@ -59,7 +59,7 @@ export function ReceiptGalleryModal({
                 key={receipt.id}
                 type="button"
                 onClick={() => setActiveReceiptId(receipt.id)}
-                className="flex aspect-square items-center justify-center overflow-hidden rounded-md border border-border bg-foreground/[0.02] transition-opacity hover:opacity-80"
+                className="flex aspect-square items-center justify-center overflow-hidden rounded-md border border-border bg-foreground/2 transition-opacity hover:opacity-80"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- DB-backed binary route, not an optimizable static asset */}
                 <img
@@ -74,10 +74,10 @@ export function ReceiptGalleryModal({
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex aspect-square items-center justify-center overflow-hidden rounded-md border border-border bg-foreground/[0.02] transition-opacity hover:opacity-80"
+                className="flex aspect-square items-center justify-center overflow-hidden rounded-md border border-border bg-foreground/2 transition-opacity hover:opacity-80"
               >
                 <span className="flex flex-col items-center gap-1 text-muted">
-                  <ReceiptIcon className="h-6 w-6" />
+                  <IconReceipt aria-hidden className="h-6 w-6" />
                   <span className="text-xs">PDF</span>
                 </span>
               </a>
@@ -104,7 +104,7 @@ export function ReceiptGalleryModal({
               aria-label="ปิดรูปเต็ม"
               className="absolute -top-10 right-0 rounded-md p-1.5 text-white/90 transition-colors hover:bg-white/10 hover:text-white sm:-top-4 sm:-right-10"
             >
-              <CloseIcon className="h-5 w-5" />
+              <IconX aria-hidden className="h-5 w-5" />
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element -- DB-backed binary route, not an optimizable static asset */}
             <img

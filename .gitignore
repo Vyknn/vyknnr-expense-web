@@ -17,8 +17,10 @@
 /blob-report/
 /playwright/.cache/
 
-# local sqlite db — generated from requirements/database.sql, regenerate anytime
+# local SQLite db — generated from requirements/database.sql, regenerate anytime
 *.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
 
 # next.js
 /.next/
