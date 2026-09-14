@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS expense_items (
   round_id INTEGER NOT NULL REFERENCES expense_rounds(id) ON DELETE CASCADE,
   payer_id INTEGER NOT NULL REFERENCES payers(id),
   description TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'other'
+    CHECK (category IN ('food', 'travel', 'accommodation', 'supplies', 'advance', 'other')),
   amount_satang INTEGER NOT NULL CHECK (amount_satang > 0),
   expense_date TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))

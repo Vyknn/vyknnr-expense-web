@@ -24,6 +24,7 @@ Table expense_items {
   round_id integer [not null, ref: > expense_rounds.id]
   payer_id integer [not null, ref: > payers.id]
   description text [not null]
+  category text [not null, default: 'other', note: 'food | travel | accommodation | supplies | advance | other']
   amount_satang integer [not null, note: 'baht * 100, integer to avoid float rounding on SUM']
   expense_date text [not null]
   created_at text [not null, default: `datetime('now')`]

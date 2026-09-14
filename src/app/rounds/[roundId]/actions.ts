@@ -1,6 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  isExpenseCategory,
+  type ExpenseCategory,
+} from "@/lib/expense-category";
 import { db } from "@/lib/db";
 
 export type AddExpenseItemState =
@@ -25,6 +29,7 @@ type ValidatedReceipt = {
 
 type ParsedExpenseFields = {
   description: string;
+  category: ExpenseCategory;
   amountSatang: number;
   expenseDate: string;
 };
@@ -33,6 +38,7 @@ function parseExpenseFields(
   formData: FormData
 ): ParsedExpenseFields | { error: string } {
   const description = String(formData.get("description") ?? "").trim();
+  const category = String(formData.get("category") ?? "").trim();
   const amountBaht = String(formData.get("amount") ?? "").trim();
   const expenseDate = String(formData.get("expenseDate") ?? "").trim();
 
@@ -42,13 +48,16 @@ function parseExpenseFields(
   if (!expenseDate) {
     return { error: "กรุณาระบุวันที่จ่าย" };
   }
+  if (!isExpenseCategory(category)) {
+    return { error: "กรุณาเลือกประเภทค่าใช้จ่าย" };
+  }
 
   const amountSatang = Math.round(Number(amountBaht) * 100);
   if (!Number.isFinite(amountSatang) || amountSatang <= 0) {
     return { error: "จำนวนเงินต้องมากกว่า 0" };
   }
 
-  return { description, amountSatang, expenseDate };
+  return { description, category, amountSatang, expenseDate };
 }
 
 function findOrCreatePayerId(payerId: string, newPayerName: string): number {
@@ -92,7 +101,7 @@ export async function addExpenseItem(
   if ("error" in parsed) {
     return { status: "error", message: parsed.error };
   }
-  const { description, amountSatang, expenseDate } = parsed;
+  const { description, category, amountSatang, expenseDate } = parsed;
 
   let resolvedPayerId: number;
   try {
@@ -132,10 +141,17 @@ export async function addExpenseItem(
   const insertItemWithReceipts = db.transaction(() => {
     const result = db
       .prepare(
-        `INSERT INTO expense_items (round_id, payer_id, description, amount_satang, expense_date)
-         VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO expense_items (round_id, payer_id, description, category, amount_satang, expense_date)
+         VALUES (?, ?, ?, ?, ?, ?)`
       )
-      .run(roundId, resolvedPayerId, description, amountSatang, expenseDate);
+      .run(
+        roundId,
+        resolvedPayerId,
+        description,
+        category,
+        amountSatang,
+        expenseDate
+      );
 
     const itemId = Number(result.lastInsertRowid);
     const insertReceipt = db.prepare(
@@ -180,7 +196,7 @@ export async function updateExpenseItem(
   if ("error" in parsed) {
     return { status: "error", message: parsed.error };
   }
-  const { description, amountSatang, expenseDate } = parsed;
+  const { description, category, amountSatang, expenseDate } = parsed;
 
   let resolvedPayerId: number;
   try {
@@ -194,9 +210,17 @@ export async function updateExpenseItem(
 
   db.prepare(
     `UPDATE expense_items
-     SET payer_id = ?, description = ?, amount_satang = ?, expense_date = ?
+     SET payer_id = ?, description = ?, category = ?, amount_satang = ?, expense_date = ?
      WHERE id = ? AND round_id = ?`
-  ).run(resolvedPayerId, description, amountSatang, expenseDate, itemId, roundId);
+  ).run(
+    resolvedPayerId,
+    description,
+    category,
+    amountSatang,
+    expenseDate,
+    itemId,
+    roundId
+  );
 
   revalidatePath(`/rounds/${roundId}`);
   return { status: "success" };

@@ -20,6 +20,7 @@ test("create a round, add an expense item with multiple receipts, and view them 
 
   await page.getByRole("button", { name: "เพิ่มรายการ" }).click();
   await page.getByLabel("รายละเอียด").fill("ซื้อกระดาษ A4");
+  await page.getByLabel("ประเภทค่าใช้จ่าย").selectOption({ label: "อาหาร" });
   await page.getByLabel("ผู้จ่าย/ผู้สำรอง").selectOption({ label: "+ เพิ่มชื่อใหม่" });
   await page.getByLabel("ชื่อผู้จ่ายใหม่").fill(payerName);
   await page.getByLabel("จำนวนเงิน (บาท)").fill("120.50");
@@ -38,6 +39,7 @@ test("create a round, add an expense item with multiple receipts, and view them 
   await page.getByRole("button", { name: "บันทึกรายการ" }).click();
 
   await expect(page.getByRole("cell", { name: "ซื้อกระดาษ A4" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "อาหาร", exact: true })).toBeVisible();
   await expect(
     page.getByRole("cell", { name: payerName, exact: true })
   ).toBeVisible();
@@ -73,6 +75,7 @@ test("create a round, add an expense item with multiple receipts, and view them 
   await page.getByRole("button", { name: "แก้ไขรายการนี้" }).click();
   const editDialog = page.getByRole("dialog");
   await editDialog.getByLabel("รายละเอียด").fill("ซื้อกระดาษ A4 (แก้ไขแล้ว)");
+  await editDialog.getByLabel("ประเภทค่าใช้จ่าย").selectOption({ label: "อุปกรณ์" });
   await editDialog.getByLabel("จำนวนเงิน (บาท)").fill("199.00");
   await editDialog.getByRole("button", { name: "บันทึกการแก้ไข" }).click();
 
@@ -80,6 +83,7 @@ test("create a round, add an expense item with multiple receipts, and view them 
     page.getByRole("cell", { name: "ซื้อกระดาษ A4 (แก้ไขแล้ว)" })
   ).toBeVisible();
   await expect(page.getByRole("cell", { name: "฿199.00" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "อุปกรณ์", exact: true })).toBeVisible();
 
   // Delete the round from the detail page and confirm it redirects home and disappears.
   page.once("dialog", (dialog) => dialog.accept());

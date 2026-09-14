@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getExpenseCategoryLabel } from "@/lib/expense-category";
 import { formatCurrencyTHB } from "@/lib/format";
 import { ArrowLeftIcon } from "@/components/icons/icons";
 import { DeleteRoundButton } from "@/app/DeleteRoundButton";
@@ -48,7 +49,7 @@ export default async function RoundDetailPage({
       <div>
         <Link
           href="/"
-          className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeftIcon className="h-3.5 w-3.5" />
           กลับหน้ารายการรอบ
@@ -61,7 +62,7 @@ export default async function RoundDetailPage({
               </h1>
               <RoundStatusSelect roundId={roundId} status={round.status} />
             </div>
-            {round.note && <p className="text-sm text-muted">{round.note}</p>}
+            {round.note && <p className="text-sm text-muted-foreground">{round.note}</p>}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <AddExpenseItemModal roundId={roundId} payers={allPayers} />
@@ -75,11 +76,11 @@ export default async function RoundDetailPage({
       </div>
 
       <section className="rounded-lg border border-border bg-card p-4 shadow-[0_2px_5px_rgba(0,0,0,0.1)] sm:p-5">
-        <h2 className="mb-3 text-sm font-semibold text-muted">
+        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
           สรุปยอดต่อผู้จ่าย
         </h2>
         {payerSummary.length === 0 ? (
-          <p className="text-sm text-muted">ยังไม่มีรายการค่าใช้จ่าย</p>
+          <p className="text-sm text-muted-foreground">ยังไม่มีรายการค่าใช้จ่าย</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {payerSummary.map((p) => (
@@ -104,11 +105,11 @@ export default async function RoundDetailPage({
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-muted">
+        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
           รายการค่าใช้จ่าย
         </h2>
         {items.length === 0 ? (
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             ยังไม่มีรายการ กด &quot;เพิ่มรายการ&quot; เพื่อเริ่มบันทึก
           </p>
         ) : (
@@ -126,8 +127,9 @@ export default async function RoundDetailPage({
                       {formatCurrencyTHB(item.amountSatang)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm text-muted">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>{item.payerName}</span>
+                    <span>{getExpenseCategoryLabel(item.category)}</span>
                     <span>
                       {new Date(item.expenseDate).toLocaleDateString("th-TH")}
                     </span>
@@ -155,9 +157,10 @@ export default async function RoundDetailPage({
             <div className="hidden overflow-hidden rounded-lg border border-border bg-card shadow-[0_2px_5px_rgba(0,0,0,0.1)] md:block">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-background text-left text-muted">
+                  <tr className="border-b border-border bg-background text-left text-muted-foreground">
                     <th className="px-4 py-3 text-xs font-semibold tracking-wide uppercase">วันที่</th>
                     <th className="px-4 py-3 text-xs font-semibold tracking-wide uppercase">รายละเอียด</th>
+                    <th className="px-4 py-3 text-xs font-semibold tracking-wide uppercase">ประเภท</th>
                     <th className="px-4 py-3 text-xs font-semibold tracking-wide uppercase">ผู้จ่าย</th>
                     <th className="px-4 py-3 text-xs font-semibold tracking-wide uppercase">จำนวนเงิน</th>
                     <th className="px-4 py-3 text-xs font-semibold tracking-wide uppercase">ใบเสร็จ</th>
@@ -170,12 +173,13 @@ export default async function RoundDetailPage({
                       key={item.id}
                       className="border-b border-border last:border-0 hover:bg-foreground/2"
                     >
-                      <td className="px-4 py-3 text-muted">
+                      <td className="px-4 py-3 text-muted-foreground">
                         {new Date(item.expenseDate).toLocaleDateString(
                           "th-TH"
                         )}
                       </td>
                       <td className="px-4 py-3">{item.description}</td>
+                      <td className="px-4 py-3">{getExpenseCategoryLabel(item.category)}</td>
                       <td className="px-4 py-3">{item.payerName}</td>
                       <td className="px-4 py-3 font-medium">
                         {formatCurrencyTHB(item.amountSatang)}

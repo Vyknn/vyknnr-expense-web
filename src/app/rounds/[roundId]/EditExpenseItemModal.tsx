@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { Modal } from "@/components/modal/Modal";
 import { PencilIcon } from "@/components/icons/icons";
+import { expenseCategories } from "@/lib/expense-category";
 import { updateExpenseItem, type UpdateExpenseItemState } from "./actions";
 import type { ExpenseItem, Payer } from "./queries";
 
@@ -48,7 +49,7 @@ export function EditExpenseItemModal({
           setOpen(true);
         }}
         aria-label="แก้ไขรายการนี้"
-        className="inline-flex items-center gap-1 rounded-md p-1.5 text-muted transition-colors hover:bg-foreground/5 hover:text-foreground"
+        className="inline-flex items-center gap-1 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
       >
         <PencilIcon className="h-4 w-4" />
       </button>
@@ -70,6 +71,22 @@ export function EditExpenseItemModal({
               defaultValue={item.description}
               className={fieldClass}
             />
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            ประเภทค่าใช้จ่าย
+            <select
+              name="category"
+              defaultValue={item.category}
+              required
+              className={fieldClass}
+            >
+              {expenseCategories.map((category) => (
+                <option key={category.value} value={category.value}>
+                  {category.label}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="flex flex-col gap-1 text-sm">

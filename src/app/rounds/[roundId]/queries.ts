@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import type { ExpenseCategory } from "@/lib/expense-category";
 import type { RoundStatus } from "@/lib/round-status";
 
 export type Round = {
@@ -13,6 +14,7 @@ export type Round = {
 export type ExpenseItem = {
   id: number;
   description: string;
+  category: ExpenseCategory;
   amountSatang: number;
   expenseDate: string;
   payerId: number;
@@ -50,6 +52,7 @@ export function getExpenseItems(roundId: number): ExpenseItem[] {
       `SELECT
          i.id AS id,
          i.description AS description,
+         i.category AS category,
          i.amount_satang AS amountSatang,
          i.expense_date AS expenseDate,
          i.payer_id AS payerId,

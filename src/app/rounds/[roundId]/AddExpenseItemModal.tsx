@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/modal/Modal";
 import { PlusIcon } from "@/components/icons/icons";
+import { expenseCategories } from "@/lib/expense-category";
 import { addExpenseItem, type AddExpenseItemState } from "./actions";
 import type { Payer } from "./queries";
 
@@ -73,6 +74,17 @@ export function AddExpenseItemModal({
           </label>
 
           <label className="flex flex-col gap-1 text-sm">
+            ประเภทค่าใช้จ่าย
+            <select name="category" defaultValue="other" required className={fieldClass}>
+              {expenseCategories.map((category) => (
+                <option key={category.value} value={category.value}>
+                  {category.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
             ผู้จ่าย/ผู้สำรอง
             <select
               name="payerId"
@@ -132,7 +144,7 @@ export function AddExpenseItemModal({
               type="file"
               multiple
               accept="image/jpeg,image/png,image/webp,application/pdf"
-              className="text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-foreground/5 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground hover:file:bg-foreground/10"
+              className="text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-foreground/5 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground hover:file:bg-foreground/10"
             />
           </label>
 
