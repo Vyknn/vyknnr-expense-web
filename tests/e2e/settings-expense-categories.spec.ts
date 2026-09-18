@@ -10,14 +10,14 @@ test("manage expense categories and clear a deleted category from existing items
   const roundName = `รอบล้างประเภท E2E ${suffix}`;
 
   await loginAsAdmin(page);
-  await page.goto("/settings");
+  await page.goto("/settings/categories");
   await page.getByRole("button", { name: "เพิ่มประเภท" }).click();
   const createDialog = page.getByRole("dialog", {
     name: "เพิ่มประเภทค่าใช้จ่าย",
   });
   await createDialog.getByLabel("ชื่อประเภทค่าใช้จ่าย").fill(categoryName);
   await createDialog.getByRole("button", { name: "บันทึกประเภท" }).click();
-  await expect(page.getByText(categoryName, { exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: categoryName, exact: true })).toBeVisible();
 
   await page
     .getByRole("button", { name: `แก้ไขประเภท ${categoryName}` })
@@ -30,7 +30,7 @@ test("manage expense categories and clear a deleted category from existing items
     .fill(updatedCategoryName);
   await editDialog.getByRole("button", { name: "บันทึกการแก้ไข" }).click();
   await expect(
-    page.getByText(updatedCategoryName, { exact: true })
+    page.getByRole("cell", { name: updatedCategoryName, exact: true })
   ).toBeVisible();
 
   await page.getByRole("button", { name: "เพิ่มประเภท" }).click();
@@ -61,7 +61,7 @@ test("manage expense categories and clear a deleted category from existing items
     page.getByText(updatedCategoryName, { exact: true })
   ).toBeVisible();
 
-  await page.getByRole("link", { name: "ตั้งค่า" }).click();
+  await page.goto("/settings/categories");
   page.once("dialog", (dialog) => dialog.accept());
   await page
     .getByRole("button", { name: `ลบประเภท ${updatedCategoryName}` })
@@ -81,7 +81,7 @@ test("delete an unused expense category", async ({ page }) => {
   const categoryName = `ประเภทลบ E2E ${Date.now()}`;
 
   await loginAsAdmin(page);
-  await page.goto("/settings");
+  await page.goto("/settings/categories");
   await page.getByRole("button", { name: "เพิ่มประเภท" }).click();
   const dialog = page.getByRole("dialog", {
     name: "เพิ่มประเภทค่าใช้จ่าย",

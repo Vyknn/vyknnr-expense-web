@@ -71,7 +71,7 @@ export default async function RoundDetailPage({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <header>
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-primary">
           <IconArrowLeft aria-hidden className="h-4 w-4" /> กลับหน้ารายการรอบ
@@ -82,7 +82,7 @@ export default async function RoundDetailPage({
             <div className="mt-1 flex flex-wrap items-center gap-3"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{round.name}</h1><span className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${ROUND_STATUS_BADGE_CLASSES[round.status]}`}>{ROUND_STATUS_LABELS[round.status]}</span></div>
             {round.note && <p className="mt-2 text-sm text-muted">{round.note}</p>}
           </div>
-          <div className="flex shrink-0 items-center gap-2">{canEdit && <AddExpenseItemModal roundId={roundId} payers={allPayers} categories={allCategories} />}<Link href={`/rounds/${roundId}/summary`} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"><IconReceipt aria-hidden className="h-4 w-4" />รายการเบิก</Link>{canEdit && <><EditRoundModal roundId={round.id} name={round.name} note={round.note} status={round.status} /><DeleteRoundButton roundId={roundId} roundName={round.name} redirectHome /></>}</div>
+          <div className="flex flex-wrap items-center gap-2">{canEdit && <AddExpenseItemModal roundId={roundId} payers={allPayers} categories={allCategories} />}<Link href={`/rounds/${roundId}/summary`} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"><IconReceipt aria-hidden className="h-4 w-4" />รายการเบิก</Link>{canEdit && <><EditRoundModal roundId={round.id} name={round.name} note={round.note} status={round.status} /><DeleteRoundButton roundId={roundId} roundName={round.name} redirectHome /></>}</div>
         </div>
       </header>
 
@@ -124,7 +124,7 @@ export default async function RoundDetailPage({
         )}
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm" aria-labelledby="items-heading">
+      <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm" aria-labelledby="items-heading">
         <div className="flex flex-col gap-3 border-b border-border px-3 py-1.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div><h2 id="items-heading" className="text-sm font-semibold">รายการค่าใช้จ่าย</h2><p className="mt-0.5 text-xs text-muted">{items.length} รายการในรอบนี้</p></div>
           <span className="self-start rounded-full bg-muted-surface px-3 py-1 text-xs font-medium text-muted sm:self-auto">บันทึกทุกรายการในรอบนี้</span>

@@ -164,6 +164,44 @@ export async function updateMemberRole(
   return state;
 }
 
+export async function deleteMember(
+  _prevState: MemberActionState,
+  formData: FormData
+): Promise<MemberActionState> {
+  const currentUser = await requireUser();
+  requireRole(currentUser, "admin");
+
+  const memberId = parseMemberId(formData);
+  if (!memberId) {
+    return { status: "error", message: "ไม่พบสมาชิกที่ต้องการลบ" };
+  }
+  if (memberId === currentUser.id) {
+    return { status: "error", message: "ไม่สามารถลบบัญชีของตนเองได้" };
+  }
+
+  const state = db.transaction((): MemberActionState => {
+    const member = getMemberRole(memberId);
+    if (!member) {
+      return { status: "error", message: "ไม่พบสมาชิกที่ต้องการลบ" };
+    }
+    if (member.role === "admin" && member.isActive === 1 && !hasAnotherActiveAdmin(memberId)) {
+      return {
+        status: "error",
+        message: "ต้องมีผู้ดูแลระบบที่ใช้งานอยู่เสมออย่างน้อยหนึ่งบัญชี",
+      };
+    }
+
+    db.prepare(`DELETE FROM users WHERE id = ?`).run(memberId);
+    return { status: "success" };
+  })();
+
+  if (state.status === "success") {
+    revalidateMemberRoutes();
+    revalidatePath("/settings");
+  }
+  return state;
+}
+
 export async function updateMemberStatus(
   _prevState: MemberActionState,
   formData: FormData

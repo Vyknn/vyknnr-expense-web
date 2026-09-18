@@ -2,50 +2,16 @@ import "server-only";
 import { db } from "@/lib/db";
 import { requireUser } from "@/features/auth/services/auth";
 
-export type PayerWithUsage = {
-  id: number;
-  name: string;
-  createdAt: string;
-  itemCount: number;
+export type SettingsOverviewCounts = {
+  payerCount: number;
+  categoryCount: number;
+  memberCount: number;
 };
 
-export type ExpenseCategoryWithUsage = {
-  id: number;
-  name: string;
-  createdAt: string;
-  itemCount: number;
-};
-
-export async function getAllPayersWithUsage(): Promise<PayerWithUsage[]> {
+export async function getSettingsOverviewCounts(): Promise<SettingsOverviewCounts> {
   await requireUser();
-  return db
-    .prepare(
-      `SELECT
-         p.id AS id,
-         p.name AS name,
-         p.created_at AS createdAt,
-         COUNT(i.id) AS itemCount
-       FROM payers p
-       LEFT JOIN expense_items i ON i.payer_id = p.id
-       GROUP BY p.id
-       ORDER BY p.name COLLATE NOCASE ASC`
-    )
-    .all() as PayerWithUsage[];
-}
-
-export async function getAllExpenseCategoriesWithUsage(): Promise<ExpenseCategoryWithUsage[]> {
-  await requireUser();
-  return db
-    .prepare(
-      `SELECT
-         c.id AS id,
-         c.name AS name,
-         c.created_at AS createdAt,
-         COUNT(i.id) AS itemCount
-       FROM expense_categories c
-       LEFT JOIN expense_items i ON i.category_id = c.id
-       GROUP BY c.id
-       ORDER BY c.name COLLATE NOCASE ASC`
-    )
-    .all() as ExpenseCategoryWithUsage[];
+  const payerCount = (db.prepare(`SELECT COUNT(*) AS count FROM payers`).get() as { count: number }).count;
+  const categoryCount = (db.prepare(`SELECT COUNT(*) AS count FROM expense_categories`).get() as { count: number }).count;
+  const memberCount = (db.prepare(`SELECT COUNT(*) AS count FROM users`).get() as { count: number }).count;
+  return { payerCount, categoryCount, memberCount };
 }

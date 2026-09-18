@@ -2,6 +2,7 @@ import { IconInbox } from "@tabler/icons-react";
 import { requireRole, requireUser } from "@/features/auth/services/auth";
 import { ROLE_LABELS } from "@/types/role";
 import { CreateMemberModal } from "./CreateMemberModal";
+import { DeleteMemberButton } from "./DeleteMemberButton";
 import { EditMemberRoleModal } from "./EditMemberRoleModal";
 import { MemberStatusToggle } from "./MemberStatusToggle";
 import { getAllMembers, type MemberSummary } from "./queries";
@@ -12,7 +13,7 @@ export default async function MembersPage() {
   const members = await getAllMembers();
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold tracking-[0.12em] text-primary uppercase">Administration</p>
@@ -83,7 +84,12 @@ function MemberList({
                 <span className="rounded-full bg-muted-surface px-2 py-0.5 text-xs font-medium text-muted">
                   {ROLE_LABELS[member.role]}
                 </span>
-                {!isSelf && <EditMemberRoleModal member={member} />}
+                {!isSelf && (
+                  <div className="flex items-center">
+                    <EditMemberRoleModal member={member} />
+                    <DeleteMemberButton memberId={member.id} memberName={member.displayName} />
+                  </div>
+                )}
               </div>
             </li>
           );
@@ -131,7 +137,14 @@ function MemberList({
                   <td className="px-4 py-1.5 text-muted">
                     {new Date(member.createdAt).toLocaleDateString("th-TH")}
                   </td>
-                  <td className="px-3 py-1.5">{!isSelf && <EditMemberRoleModal member={member} />}</td>
+                  <td className="px-3 py-1.5">
+                    {!isSelf && (
+                      <div className="flex items-center">
+                        <EditMemberRoleModal member={member} />
+                        <DeleteMemberButton memberId={member.id} memberName={member.displayName} />
+                      </div>
+                    )}
+                  </td>
                 </tr>
               );
             })}

@@ -10,14 +10,13 @@ test("manage payers and clear a deleted payer from existing expense items", asyn
   const roundName = `รอบล้างผู้จ่าย E2E ${suffix}`;
 
   await loginAsAdmin(page);
-  await page.getByRole("link", { name: "ตั้งค่า" }).click();
-  await expect(page).toHaveURL("/settings");
+  await page.goto("/settings/payers");
 
   await page.getByRole("button", { name: "เพิ่มผู้จ่าย" }).click();
   const createDialog = page.getByRole("dialog", { name: "เพิ่มผู้จ่าย/ผู้สำรอง" });
   await createDialog.getByLabel("ชื่อผู้จ่าย/ผู้สำรอง").fill(payerName);
   await createDialog.getByRole("button", { name: "บันทึกผู้จ่าย" }).click();
-  await expect(page.getByText(payerName, { exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: payerName, exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: `แก้ไขผู้จ่าย ${payerName}` }).click();
   const editDialog = page.getByRole("dialog", { name: "แก้ไขผู้จ่าย/ผู้สำรอง" });
@@ -25,7 +24,7 @@ test("manage payers and clear a deleted payer from existing expense items", asyn
     .getByLabel("ชื่อผู้จ่าย/ผู้สำรอง")
     .fill(updatedPayerName);
   await editDialog.getByRole("button", { name: "บันทึกการแก้ไข" }).click();
-  await expect(page.getByText(updatedPayerName, { exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: updatedPayerName, exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "เพิ่มผู้จ่าย" }).click();
   await createDialog.getByLabel("ชื่อผู้จ่าย/ผู้สำรอง").fill(updatedPayerName);
@@ -49,7 +48,7 @@ test("manage payers and clear a deleted payer from existing expense items", asyn
   await expenseDialog.getByRole("button", { name: "บันทึกรายการ" }).click();
   await expect(page.getByText(updatedPayerName, { exact: true })).toBeVisible();
 
-  await page.getByRole("link", { name: "ตั้งค่า" }).click();
+  await page.goto("/settings/payers");
   page.once("dialog", (dialog) => dialog.accept());
   await page
     .getByRole("button", { name: `ลบผู้จ่าย ${updatedPayerName}` })
@@ -65,7 +64,7 @@ test("delete an unused payer", async ({ page }) => {
   const payerName = `ผู้จ่ายลบ E2E ${Date.now()}`;
 
   await loginAsAdmin(page);
-  await page.goto("/settings");
+  await page.goto("/settings/payers");
   await page.getByRole("button", { name: "เพิ่มผู้จ่าย" }).click();
   const dialog = page.getByRole("dialog", { name: "เพิ่มผู้จ่าย/ผู้สำรอง" });
   await dialog.getByLabel("ชื่อผู้จ่าย/ผู้สำรอง").fill(payerName);

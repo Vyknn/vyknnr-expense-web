@@ -4,7 +4,7 @@ steps:
   entrypoint: 'bash'
   args: [
     '-c', 
-    'docker pull gcr.io/$PROJECT_ID/next-template-starter:latest || exit 0'
+    'docker pull gcr.io/$PROJECT_ID/vyknnr-expense-web:latest || exit 0'
   ]
 #step 2
 - name: gcr.io/cloud-builders/docker
@@ -13,15 +13,15 @@ steps:
     '--build-arg',
     'BUILD=$SHORT_SHA',
     '-t', 
-    'asia.gcr.io/$PROJECT_ID/next-template-starter:$SHORT_SHA',
+    'asia.gcr.io/$PROJECT_ID/vyknnr-expense-web:$SHORT_SHA',
     '-t', 
-    'asia.gcr.io/$PROJECT_ID/next-template-starter:latest',
+    'asia.gcr.io/$PROJECT_ID/vyknnr-expense-web:latest',
     '.'
   ]
 - name: 'gcr.io/cloud-builders/docker'
   args: [
     'push',
-    'asia.gcr.io/$PROJECT_ID/next-template-starter:$SHORT_SHA'
+    'asia.gcr.io/$PROJECT_ID/vyknnr-expense-web:$SHORT_SHA'
   ]
 #step 3
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -29,16 +29,16 @@ steps:
   args:
   - 'run'
   - 'deploy'
-  - 'next-template-starter'
+  - 'vyknnr-expense-web'
   - '--image'
-  - 'asia.gcr.io/$PROJECT_ID/next-template-starter:$SHORT_SHA'
+  - 'asia.gcr.io/$PROJECT_ID/vyknnr-expense-web:$SHORT_SHA'
   - '--region'
   - 'asia-southeast1'
   - '--allow-unauthenticated'
 # push images to Google Container Registry with tags
 images: [
-   'asia.gcr.io/$PROJECT_ID/next-template-starter:$SHORT_SHA',
-   'asia.gcr.io/$PROJECT_ID/next-template-starter:latest'
+   'asia.gcr.io/$PROJECT_ID/vyknnr-expense-web:$SHORT_SHA',
+   'asia.gcr.io/$PROJECT_ID/vyknnr-expense-web:latest'
 ]
 options:
   # machineType: E2_HIGHCPU_8  

@@ -20,7 +20,7 @@ export default async function Home() {
   const activeRounds = rounds.filter((round) => round.status === "in_progress").length;
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold tracking-[0.12em] text-primary uppercase">ภาพรวมค่าใช้จ่าย</p>
@@ -36,7 +36,7 @@ export default async function Home() {
         <SummaryCard label="รอดำเนินการ" value={`${activeRounds} รอบ`} detail={activeRounds > 0 ? "ติดตามและอัปเดตสถานะได้" : "ไม่มีรอบที่รอดำเนินการ"} />
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="flex flex-col gap-3 border-b border-border px-3 py-1.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div>
             <h2 className="font-semibold">ทะเบียนรอบเบิก-จ่าย</h2>
