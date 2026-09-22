@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { IconPencil } from "@tabler/icons-react";
 import { Modal } from "@/components/modal/Modal";
+import { Select } from "@/components/select/Select";
 import {
   updateRoundDetails,
   type UpdateRoundDetailsState,
@@ -80,13 +81,13 @@ export function EditRoundModal({
 
           <label className="flex flex-col gap-1 text-sm">
             สถานะ
-            <select name="status" defaultValue={status} className={fieldClass}>
+            <Select name="status" defaultValue={status}>
               {ROUND_STATUSES.map((value) => (
                 <option key={value} value={value}>
                   {ROUND_STATUS_LABELS[value]}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           {state.status === "error" && (

@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { IconPlus } from "@tabler/icons-react";
 import { Modal } from "@/components/modal/Modal";
+import { Select } from "@/components/select/Select";
 import { ROLES, ROLE_LABELS } from "@/types/role";
 import { createMember, type MemberActionState } from "./actions";
 
@@ -89,18 +90,13 @@ export function CreateMemberModal() {
 
           <label className="flex flex-col gap-1 text-sm">
             สิทธิ์การใช้งาน
-            <select
-              name="role"
-              required
-              defaultValue="viewer"
-              className={fieldClass}
-            >
+            <Select name="role" required defaultValue="viewer">
               {ROLES.map((role) => (
                 <option key={role} value={role}>
                   {ROLE_LABELS[role]}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <label className="flex flex-col gap-1 text-sm">

@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/modal/Modal";
+import { Select } from "@/components/select/Select";
 import { IconPlus } from "@tabler/icons-react";
 import { addExpenseItem, type AddExpenseItemState } from "./actions";
 import type { ExpenseCategory, Payer } from "./queries";
@@ -79,23 +80,22 @@ export function AddExpenseItemModal({
 
           <label className="flex flex-col gap-1 text-sm">
             ประเภทค่าใช้จ่าย
-            <select name="categoryId" defaultValue="" className={fieldClass}>
+            <Select name="categoryId" defaultValue="">
               <option value="">ไม่ระบุประเภท</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <label className="flex flex-col gap-1 text-sm">
             ผู้จ่าย/ผู้สำรอง
-            <select
+            <Select
               name="payerId"
               value={payerSelection}
               onChange={(e) => setPayerSelection(e.target.value)}
-              className={fieldClass}
             >
               <option value={EMPTY_PAYER_VALUE}>ไม่ระบุผู้จ่าย</option>
               {payers.map((payer) => (
@@ -103,7 +103,7 @@ export function AddExpenseItemModal({
                   {payer.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <div className="flex flex-col gap-3 sm:flex-row">

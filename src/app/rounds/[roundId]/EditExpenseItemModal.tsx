@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { Modal } from "@/components/modal/Modal";
+import { Select } from "@/components/select/Select";
 import { IconPencil, IconX } from "@tabler/icons-react";
 import { updateExpenseItem, type UpdateExpenseItemState } from "./actions";
 import type { ExpenseCategory, ExpenseItem, Payer, Receipt } from "./queries";
@@ -99,10 +100,9 @@ export function EditExpenseItemModal({
 
           <label className="flex flex-col gap-1 text-sm">
             ประเภทค่าใช้จ่าย
-            <select
+            <Select
               name="categoryId"
               defaultValue={item.categoryId ? String(item.categoryId) : ""}
-              className={fieldClass}
             >
               <option value="">ไม่ระบุประเภท</option>
               {categories.map((category) => (
@@ -110,16 +110,15 @@ export function EditExpenseItemModal({
                   {category.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <label className="flex flex-col gap-1 text-sm">
             ผู้จ่าย/ผู้สำรอง
-            <select
+            <Select
               name="payerId"
               value={payerSelection}
               onChange={(e) => setPayerSelection(e.target.value)}
-              className={fieldClass}
             >
               <option value={EMPTY_PAYER_VALUE}>ไม่ระบุผู้จ่าย</option>
               {payers.map((payer) => (
@@ -127,7 +126,7 @@ export function EditExpenseItemModal({
                   {payer.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -157,7 +156,7 @@ export function EditExpenseItemModal({
 
           {receipts.length > 0 && (
             <div className="flex flex-col gap-1 text-sm">
-              <span>ใบเสร็จเดิม</span>
+              <span>หลักฐานเดิม</span>
               <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {receipts.map((receipt) => {
                   const isRemoved = removedReceiptIds.has(receipt.id);
@@ -173,7 +172,7 @@ export function EditExpenseItemModal({
                       >
                         {isImage ? (
                           // eslint-disable-next-line @next/next/no-img-element -- GCS-backed binary route, not an optimizable static asset
-                          <img src={href} alt="ใบเสร็จ" className="h-full w-full object-cover" />
+                          <img src={href} alt="หลักฐาน" className="h-full w-full object-cover" />
                         ) : (
                           <span className="text-xs text-muted">ไฟล์แนบ</span>
                         )}
@@ -181,7 +180,7 @@ export function EditExpenseItemModal({
                       <button
                         type="button"
                         onClick={() => toggleRemoveReceipt(receipt.id)}
-                        aria-label={isRemoved ? "ยกเลิกการลบใบเสร็จนี้" : "ลบใบเสร็จนี้"}
+                        aria-label={isRemoved ? "ยกเลิกการลบหลักฐานนี้" : "ลบหลักฐานนี้"}
                         className={`absolute -top-1.5 -right-1.5 rounded-full p-1 shadow-sm transition-colors ${
                           isRemoved
                             ? "bg-muted text-white"
@@ -196,7 +195,7 @@ export function EditExpenseItemModal({
               </ul>
               {removedReceiptIds.size > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  จะลบใบเสร็จที่ทำเครื่องหมายไว้ {removedReceiptIds.size} ไฟล์เมื่อบันทึก
+                  จะลบหลักฐานที่ทำเครื่องหมายไว้ {removedReceiptIds.size} ไฟล์เมื่อบันทึก
                 </p>
               )}
             </div>

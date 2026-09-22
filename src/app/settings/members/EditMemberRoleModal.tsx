@@ -3,13 +3,12 @@
 import { useActionState, useEffect, useState } from "react";
 import { IconPencil } from "@tabler/icons-react";
 import { Modal } from "@/components/modal/Modal";
+import { Select } from "@/components/select/Select";
 import { ROLES, ROLE_LABELS } from "@/types/role";
 import { updateMemberRole, type MemberActionState } from "./actions";
 import type { MemberSummary } from "./queries";
 
 const initialState: MemberActionState = { status: "idle" };
-const fieldClass =
-  "rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/20";
 
 export function EditMemberRoleModal({ member }: { member: MemberSummary }) {
   const [open, setOpen] = useState(false);
@@ -46,18 +45,13 @@ export function EditMemberRoleModal({ member }: { member: MemberSummary }) {
           <input type="hidden" name="memberId" value={member.id} />
           <label className="flex flex-col gap-1 text-sm">
             สิทธิ์การใช้งาน
-            <select
-              name="role"
-              required
-              defaultValue={member.role}
-              className={fieldClass}
-            >
+            <Select name="role" required defaultValue={member.role}>
               {ROLES.map((role) => (
                 <option key={role} value={role}>
                   {ROLE_LABELS[role]}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           {state.status === "error" && (

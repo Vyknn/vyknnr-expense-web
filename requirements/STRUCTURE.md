@@ -39,8 +39,9 @@ next-template-starter/
 │   ├── components/
 │   │   ├── data-table/    DataTable.tsx  Pagination.tsx
 │   │   ├── filter-bar/    DateRangeFilter.tsx  DropdownFilter.tsx  SearchButton.tsx
-│   │   ├── layouts/       RootLayout.tsx  AppNavigation.tsx  AuthLayout.tsx
+│   │   ├── layouts/       RootLayout.tsx  AppNavigation.tsx  AuthLayout.tsx  ThemeToggle.tsx
 │   │   ├── modal/         Modal.tsx
+│   │   ├── select/        Select.tsx
 │   │   └── toggle/        Toggle.tsx
 │   │
 │   ├── features/
