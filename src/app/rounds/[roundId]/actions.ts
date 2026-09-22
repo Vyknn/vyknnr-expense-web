@@ -105,7 +105,7 @@ async function validateAndUploadReceipts(
       storageKey = await uploadReceipt(image.buffer, image.mimeType, roundId);
     } catch (err) {
       console.error(`[expense-items] อัปโหลดไฟล์ "${file.name}" ไป Cloud Storage ไม่สำเร็จ`, err);
-      return { error: "ไม่สามารถอัปโหลดไฟล์ใบเสร็จได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง" };
+      return { error: "ไม่สามารถอัปโหลดไฟล์หลักฐานได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง" };
     }
 
     receipts.push({

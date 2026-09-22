@@ -103,7 +103,7 @@ export default async function PublicRoundPage({
                             >
                               {isImage ? (
                                 // eslint-disable-next-line @next/next/no-img-element -- GCS-backed binary route, not an optimizable static asset
-                                <img src={href} alt="ใบเสร็จ" className="h-full w-full object-cover" />
+                                <img src={href} alt="หลักฐาน" className="h-full w-full object-cover" />
                               ) : (
                                 <IconReceipt aria-hidden className="h-5 w-5 text-muted" />
                               )}

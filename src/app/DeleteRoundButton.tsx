@@ -29,7 +29,7 @@ export function DeleteRoundButton({
         const form = e.currentTarget;
         const confirmed = await confirmDelete({
           title: `ลบรอบ "${roundName}" ใช่หรือไม่?`,
-          text: "รายการค่าใช้จ่ายและใบเสร็จทั้งหมดในรอบนี้จะถูกลบไปด้วย และไม่สามารถกู้คืนได้",
+          text: "รายการค่าใช้จ่ายและหลักฐานทั้งหมดในรอบนี้จะถูกลบไปด้วย และไม่สามารถกู้คืนได้",
         });
         if (confirmed) formAction(new FormData(form));
       }}

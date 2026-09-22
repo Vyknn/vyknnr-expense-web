@@ -52,7 +52,7 @@ export async function deleteReceipts(keys: string[]): Promise<void> {
   const results = await Promise.allSettled(keys.map((key) => bucket.file(key).delete()));
   for (const [index, result] of results.entries()) {
     if (result.status === "rejected") {
-      console.warn(`[storage] ลบไฟล์ใบเสร็จ "${keys[index]}" บน GCS ไม่สำเร็จ`, result.reason);
+      console.warn(`[storage] ลบไฟล์หลักฐาน "${keys[index]}" บน GCS ไม่สำเร็จ`, result.reason);
     }
   }
 }

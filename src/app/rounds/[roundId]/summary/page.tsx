@@ -174,7 +174,7 @@ export default async function RoundSummaryPage({
                         จำนวนเงิน
                       </th>
                       <th className="w-px whitespace-nowrap px-2 py-2 text-xs font-semibold tracking-wide uppercase print:hidden">
-                        ใบเสร็จ
+                        หลักฐาน
                       </th>
                     </tr>
                   </thead>

@@ -41,13 +41,13 @@ export function ReceiptGalleryModal({
         className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary-tint hover:no-underline focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
       >
         <IconReceipt aria-hidden className="h-3.5 w-3.5" />
-        ใบเสร็จ ({receipts.length})
+        หลักฐาน ({receipts.length})
       </button>
 
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={`ใบเสร็จ (${receipts.length})`}
+        title={`หลักฐาน (${receipts.length})`}
       >
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {receipts.map((receipt) => {
@@ -64,7 +64,7 @@ export function ReceiptGalleryModal({
                 {/* eslint-disable-next-line @next/next/no-img-element -- GCS-backed binary route, not an optimizable static asset */}
                 <img
                   src={href}
-                  alt="ใบเสร็จ"
+                  alt="หลักฐาน"
                   className="h-full w-full object-cover"
                 />
               </button>
@@ -89,7 +89,7 @@ export function ReceiptGalleryModal({
       {/* Full-image lightbox, opened from a thumbnail above */}
       <dialog
         ref={lightboxRef}
-        aria-label="ดูรูปใบเสร็จแบบเต็ม"
+        aria-label="ดูรูปหลักฐานแบบเต็ม"
         onClose={() => setActiveReceiptId(null)}
         onClick={(e) => {
           if (e.target === lightboxRef.current) setActiveReceiptId(null);
@@ -109,7 +109,7 @@ export function ReceiptGalleryModal({
             {/* eslint-disable-next-line @next/next/no-img-element -- GCS-backed binary route, not an optimizable static asset */}
             <img
               src={`/rounds/${roundId}/receipts/${itemId}/${activeReceiptId}`}
-              alt="ใบเสร็จ"
+              alt="หลักฐาน"
               className="max-h-[90vh] w-full rounded-md object-contain"
             />
           </div>

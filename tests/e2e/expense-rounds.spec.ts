@@ -43,8 +43,8 @@ test("create a round, add an expense item with multiple receipts, and view them 
   ).toBeVisible();
   await expect(page.getByRole("cell", { name: "฿120.50" })).toBeVisible();
 
-  await page.getByRole("button", { name: "ใบเสร็จ (2)" }).click();
-  const galleryDialog = page.getByRole("dialog", { name: "ใบเสร็จ (2)" });
+  await page.getByRole("button", { name: "หลักฐาน (2)" }).click();
+  const galleryDialog = page.getByRole("dialog", { name: "หลักฐาน (2)" });
   await expect(galleryDialog).toBeVisible();
 
   const thumbnails = galleryDialog.locator("img");
@@ -52,7 +52,7 @@ test("create a round, add an expense item with multiple receipts, and view them 
 
   // Clicking a thumbnail opens the full-image lightbox, not a new tab.
   await thumbnails.first().click();
-  const lightbox = page.getByRole("dialog", { name: "ดูรูปใบเสร็จแบบเต็ม" });
+  const lightbox = page.getByRole("dialog", { name: "ดูรูปหลักฐานแบบเต็ม" });
   await expect(lightbox).toBeVisible();
 
   const lightboxImageSrc = await lightbox.locator("img").getAttribute("src");
@@ -89,7 +89,7 @@ test("create a round, add an expense item with multiple receipts, and view them 
   await expect(
     page.getByRole("cell", { name: "ซื้อกระดาษ A4 (แก้ไขแล้ว)" })
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "ใบเสร็จ (2)" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "หลักฐาน (2)" })).toBeVisible();
   await expect(page.getByRole("button", { name: "พิมพ์รายการเบิก" })).toBeVisible();
   await expect(page.getByText("฿199.00", { exact: true })).toBeVisible();
 
