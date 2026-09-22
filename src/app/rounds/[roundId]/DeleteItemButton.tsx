@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { IconTrash } from "@tabler/icons-react";
+import { confirmDelete } from "@/lib/confirm";
 import { deleteExpenseItem, type DeleteExpenseItemState } from "./actions";
 
 const initialState: DeleteExpenseItemState = { status: "idle" };
@@ -21,8 +22,11 @@ export function DeleteItemButton({
   return (
     <form
       action={formAction}
-      onSubmit={(e) => {
-        if (!confirm("ลบรายการนี้?")) e.preventDefault();
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const form = e.currentTarget;
+        const confirmed = await confirmDelete({ title: "ลบรายการนี้ใช่หรือไม่?" });
+        if (confirmed) formAction(new FormData(form));
       }}
     >
       <input type="hidden" name="roundId" value={roundId} />

@@ -17,11 +17,6 @@
 /blob-report/
 /playwright/.cache/
 
-# local SQLite db — generated from requirements/database.sql, regenerate anytime
-*.sqlite3
-*.sqlite3-wal
-*.sqlite3-shm
-
 # next.js
 /.next/
 /out/
@@ -42,6 +37,9 @@ dbml-error.log*
 
 # env files (can opt-in for committing if needed)
 .env
+
+# GCS service-account key (secret — never commit)
+/certs/
 
 # vercel
 .vercel

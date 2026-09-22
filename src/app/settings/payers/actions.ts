@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { query, queryRow } from "@/lib/db";
 import { requireRole, requireUser } from "@/features/auth/services/auth";
 
 export type PayerActionState =
@@ -19,17 +19,14 @@ function parsePayerName(formData: FormData): string | null {
   return name || null;
 }
 
-function payerNameExists(name: string, excludedPayerId?: number): boolean {
-  const payer = db
-    .prepare(
-      `SELECT id
-       FROM payers
-       WHERE name = ? COLLATE NOCASE
-         AND (? IS NULL OR id != ?)`
-    )
-    .get(name, excludedPayerId ?? null, excludedPayerId ?? null) as
-    | { id: number }
-    | undefined;
+async function payerNameExists(name: string, excludedPayerId?: number): Promise<boolean> {
+  const payer = await queryRow<{ id: number }>(
+    `SELECT id
+     FROM payers
+     WHERE LOWER(name) = LOWER($1)
+       AND ($2::int IS NULL OR id != $2)`,
+    [name, excludedPayerId ?? null]
+  );
 
   return Boolean(payer);
 }
@@ -44,7 +41,7 @@ function isUniqueConstraintError(error: unknown): boolean {
   return (
     error instanceof Error &&
     "code" in error &&
-    error.code === "SQLITE_CONSTRAINT_UNIQUE"
+    error.code === "23505"
   );
 }
 
@@ -57,12 +54,12 @@ export async function createPayer(
   if (!name) {
     return { status: "error", message: "กรุณาระบุชื่อผู้จ่าย/ผู้สำรอง" };
   }
-  if (payerNameExists(name)) {
+  if (await payerNameExists(name)) {
     return { status: "error", message: "มีชื่อผู้จ่าย/ผู้สำรองนี้แล้ว" };
   }
 
   try {
-    db.prepare(`INSERT INTO payers (name) VALUES (?)`).run(name);
+    await query(`INSERT INTO payers (name) VALUES ($1)`, [name]);
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return { status: "error", message: "มีชื่อผู้จ่าย/ผู้สำรองนี้แล้ว" };
@@ -88,15 +85,13 @@ export async function updatePayer(
   if (!name) {
     return { status: "error", message: "กรุณาระบุชื่อผู้จ่าย/ผู้สำรอง" };
   }
-  if (payerNameExists(name, payerId)) {
+  if (await payerNameExists(name, payerId)) {
     return { status: "error", message: "มีชื่อผู้จ่าย/ผู้สำรองนี้แล้ว" };
   }
 
   try {
-    const result = db
-      .prepare(`UPDATE payers SET name = ? WHERE id = ?`)
-      .run(name, payerId);
-    if (result.changes === 0) {
+    const result = await query(`UPDATE payers SET name = $1 WHERE id = $2`, [name, payerId]);
+    if (result.rowCount === 0) {
       return { status: "error", message: "ไม่พบผู้จ่าย/ผู้สำรองที่ต้องการแก้ไข" };
     }
   } catch (error) {
@@ -120,8 +115,8 @@ export async function deletePayer(
     return { status: "error", message: "ไม่พบผู้จ่าย/ผู้สำรองที่ต้องการลบ" };
   }
 
-  const result = db.prepare(`DELETE FROM payers WHERE id = ?`).run(payerId);
-  if (result.changes === 0) {
+  const result = await query(`DELETE FROM payers WHERE id = $1`, [payerId]);
+  if (result.rowCount === 0) {
     return { status: "error", message: "ไม่พบผู้จ่าย/ผู้สำรองที่ต้องการลบ" };
   }
 

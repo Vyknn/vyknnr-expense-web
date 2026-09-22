@@ -1,12 +1,9 @@
 import "server-only";
 import fs from "node:fs";
 import path from "node:path";
-import Database from "better-sqlite3";
+import { Pool, types, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
 import { hashPassword } from "@/features/auth/services/password";
 
-const DB_PATH = process.env.DATABASE_PATH
-  ? path.resolve(process.env.DATABASE_PATH)
-  : path.join(process.cwd(), "src/db/database.sqlite3");
 const MIGRATIONS_PATH = path.join(process.cwd(), "src/db/migrations");
 const DEFAULT_EXPENSE_CATEGORIES = [
   "อาหาร",
@@ -17,19 +14,29 @@ const DEFAULT_EXPENSE_CATEGORIES = [
   "อื่นๆ",
 ];
 
-function runMigrations(database: Database.Database) {
-  database.exec(`
+// เก็บ timestamptz/timestamp เป็น ISO string ดิบแทนการ parse เป็น JS Date — ให้ตรงกับ
+// TypeScript types (`string`) เดิมที่โค้ดทั้งระบบใช้อยู่ ในขณะที่ column ยังเป็น native
+// timestamptz จริงใน Postgres (index/เทียบกับ now() ได้ตรง ๆ)
+types.setTypeParser(types.builtins.TIMESTAMPTZ, (value) => value);
+types.setTypeParser(types.builtins.TIMESTAMP, (value) => value);
+
+declare global {
+  var __pgPool: Pool | undefined;
+  var __pgInit: Promise<void> | undefined;
+}
+
+async function runMigrations(client: PoolClient) {
+  await client.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       filename TEXT PRIMARY KEY,
-      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
 
-  const applied = new Set(
-    (database.prepare(`SELECT filename FROM schema_migrations`).all() as {
-      filename: string;
-    }[]).map((migration) => migration.filename)
+  const { rows: appliedRows } = await client.query<{ filename: string }>(
+    `SELECT filename FROM schema_migrations`
   );
+  const applied = new Set(appliedRows.map((row) => row.filename));
   const migrations = fs
     .readdirSync(MIGRATIONS_PATH)
     .filter((filename) => filename.endsWith(".sql"))
@@ -39,20 +46,30 @@ function runMigrations(database: Database.Database) {
     if (applied.has(filename)) continue;
 
     const sql = fs.readFileSync(path.join(MIGRATIONS_PATH, filename), "utf8");
-    database.transaction(() => {
-      database.exec(sql);
-      database
-        .prepare(`INSERT INTO schema_migrations (filename) VALUES (?)`)
-        .run(filename);
-    })();
+    await client.query("BEGIN");
+    try {
+      await client.query(sql);
+      await client.query(`INSERT INTO schema_migrations (filename) VALUES ($1)`, [filename]);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
   }
 }
 
-function ensureInitialAdmin(database: Database.Database) {
-  const userCount = (
-    database.prepare(`SELECT COUNT(*) AS count FROM users`).get() as { count: number }
-  ).count;
-  if (userCount > 0) return;
+async function seedDefaultExpenseCategories(client: PoolClient) {
+  for (const category of DEFAULT_EXPENSE_CATEGORIES) {
+    await client.query(
+      `INSERT INTO expense_categories (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`,
+      [category]
+    );
+  }
+}
+
+async function ensureInitialAdmin(client: PoolClient) {
+  const { rows } = await client.query<{ count: string }>(`SELECT COUNT(*) AS count FROM users`);
+  if (Number(rows[0].count) > 0) return;
 
   const email = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.INITIAL_ADMIN_PASSWORD;
@@ -63,97 +80,105 @@ function ensureInitialAdmin(database: Database.Database) {
     return;
   }
 
-  database
-    .prepare(
-      `INSERT INTO users (email, display_name, password_hash, role, must_change_password)
-       VALUES (?, ?, ?, 'admin', 0)`
-    )
-    .run(email, email, hashPassword(password));
-}
-
-function migrateExpenseItemCategoryColumn(database: Database.Database) {
-  const expenseItemColumns = database
-    .prepare(`PRAGMA table_info(expense_items)`)
-    .all() as { name: string }[];
-  const hasLegacyCategory = expenseItemColumns.some((column) => column.name === "category");
-  const hasCategoryId = expenseItemColumns.some((column) => column.name === "category_id");
-
-  if (!hasCategoryId) {
-    const legacyCategoryIdExpression = hasLegacyCategory
-      ? `(SELECT id FROM expense_categories WHERE name = CASE category
-          WHEN 'food' THEN 'อาหาร'
-          WHEN 'travel' THEN 'การเดินทาง'
-          WHEN 'accommodation' THEN 'ที่พัก'
-          WHEN 'supplies' THEN 'อุปกรณ์'
-          WHEN 'advance' THEN 'สำรองจ่าย'
-          ELSE 'อื่นๆ'
-        END)`
-      : "NULL";
-
-    database.exec(`
-      PRAGMA foreign_keys = OFF;
-      BEGIN;
-      CREATE TABLE expense_items_replacement (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        round_id INTEGER NOT NULL REFERENCES expense_rounds(id) ON DELETE CASCADE,
-        payer_id INTEGER REFERENCES payers(id) ON DELETE SET NULL,
-        category_id INTEGER REFERENCES expense_categories(id) ON DELETE SET NULL,
-        description TEXT NOT NULL,
-        amount_satang INTEGER NOT NULL CHECK (amount_satang > 0),
-        expense_date TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-      INSERT INTO expense_items_replacement (
-        id, round_id, payer_id, category_id, description, amount_satang, expense_date, created_at
-      )
-      SELECT id, round_id, payer_id, ${legacyCategoryIdExpression}, description, amount_satang, expense_date, created_at
-      FROM expense_items;
-      DROP TABLE expense_items;
-      ALTER TABLE expense_items_replacement RENAME TO expense_items;
-      CREATE INDEX idx_expense_items_round ON expense_items(round_id);
-      CREATE INDEX idx_expense_items_payer ON expense_items(payer_id);
-      COMMIT;
-      PRAGMA foreign_keys = ON;
-    `);
-  }
-  database.exec(
-    `CREATE INDEX IF NOT EXISTS idx_expense_items_category ON expense_items(category_id)`
+  await client.query(
+    `INSERT INTO users (email, display_name, password_hash, role, must_change_password)
+     VALUES ($1, $2, $3, 'admin', 0)`,
+    [email, email, hashPassword(password)]
   );
 }
 
-declare global {
-  var __db: Database.Database | undefined;
+function createPool(): Pool {
+  return new Pool({ connectionString: process.env.DB_PRIMARY_DSN });
 }
 
-function initDb(): Database.Database {
-  if (globalThis.__db) return globalThis.__db;
-
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-
-  const database = new Database(DB_PATH);
-  database.pragma("journal_mode = WAL");
-  database.pragma("busy_timeout = 5000");
-  database.pragma("foreign_keys = ON");
-  runMigrations(database);
-
-  database.transaction(() => {
-    const insertCategory = database.prepare(
-      `INSERT OR IGNORE INTO expense_categories (name) VALUES (?)`
-    );
-    for (const category of DEFAULT_EXPENSE_CATEGORIES) insertCategory.run(category);
-  })();
-
-  migrateExpenseItemCategoryColumn(database);
-  ensureInitialAdmin(database);
-
-  globalThis.__db = database;
-  return database;
+async function initDb(): Promise<void> {
+  const client = await getPool().connect();
+  try {
+    await runMigrations(client);
+    await seedDefaultExpenseCategories(client);
+    await ensureInitialAdmin(client);
+  } finally {
+    client.release();
+  }
 }
 
-export const db: Database.Database = new Proxy({} as Database.Database, {
-  get(_target, prop) {
-    const instance = initDb();
-    const value = Reflect.get(instance, prop, instance);
-    return typeof value === "function" ? value.bind(instance) : value;
-  },
-});
+function getPool(): Pool {
+  if (!globalThis.__pgPool) {
+    globalThis.__pgPool = createPool();
+  }
+  return globalThis.__pgPool;
+}
+
+async function ready(): Promise<void> {
+  if (!globalThis.__pgInit) {
+    globalThis.__pgInit = initDb();
+  }
+  await globalThis.__pgInit;
+}
+
+export async function query<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params?: unknown[]
+): Promise<QueryResult<T>> {
+  await ready();
+  return getPool().query<T>(text, params);
+}
+
+export async function queryRows<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params?: unknown[]
+): Promise<T[]> {
+  return (await query<T>(text, params)).rows;
+}
+
+export async function queryRow<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params?: unknown[]
+): Promise<T | undefined> {
+  return (await query<T>(text, params)).rows[0];
+}
+
+// ตัวขั้นต่ำที่ต้องมีเพื่อ "รัน query ผ่าน connection ที่กำหนด" — ทั้ง top-level `query`
+// (pool) และ `Transaction.query` (checked-out client ระหว่าง `withTransaction`) มีชนิดตรงกัน
+// จุดนี้ ใช้เป็น default parameter ให้ฟังก์ชันใน session.ts เลือกได้ว่าจะรันบน pool เฉย ๆ
+// หรือรันร่วม transaction เดียวกับผู้เรียก (สำคัญเพราะ pg ใช้ connection pool — ต่างจาก
+// better-sqlite3 ที่มี connection เดียว ทำให้ทุกอย่างอยู่ใน transaction เดียวกันโดยอัตโนมัติ)
+export type Executor = {
+  query: <T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    params?: unknown[]
+  ) => Promise<QueryResult<T>>;
+};
+
+export type Transaction = Executor & {
+  queryRows: <T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    params?: unknown[]
+  ) => Promise<T[]>;
+  queryRow: <T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    params?: unknown[]
+  ) => Promise<T | undefined>;
+};
+
+export async function withTransaction<T>(fn: (tx: Transaction) => Promise<T>): Promise<T> {
+  await ready();
+  const client = await getPool().connect();
+  const tx: Transaction = {
+    query: (text, params) => client.query(text, params),
+    queryRows: async (text, params) => (await client.query(text, params)).rows,
+    queryRow: async (text, params) => (await client.query(text, params)).rows[0],
+  };
+
+  try {
+    await client.query("BEGIN");
+    const result = await fn(tx);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

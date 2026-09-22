@@ -48,13 +48,12 @@ next-template-starter/
 │   │       ├── constants.ts            # pure cookie name; safe for proxy.ts
 │   │       └── services/               # auth.ts, password.ts, session.ts
 │   ├── db/
-│   │   ├── migrations/                 # ordered runtime SQL migrations
-│   │   └── database.sqlite3            # local SQLite DB, gitignored
+│   │   └── migrations/                 # ordered runtime SQL migrations (PostgreSQL)
 │   │
 │   ├── config/       nav.ts (รายการเมนูหลัก)
 │   ├── contexts/     UserContext.tsx
 │   ├── hooks/        useDebounce.ts  useSearchParamsState.ts
-│   ├── lib/          db.ts  format.ts  receipt-image.ts  round-status.ts
+│   ├── lib/          db.ts  storage.ts  format.ts  receipt-image.ts  round-status.ts
 │   ├── providers/    Providers.tsx
 │   ├── stores/       filterStore.ts
 │   ├── styles/       (ว่าง — ดูหลักการด้านล่าง)
@@ -117,15 +116,15 @@ next-template-starter/
   ของตัวเอง หรือถูกใช้ข้ามหลาย route จริง ๆ (เช่น `auth` ที่ทั้งหน้า login และ `proxy.ts` ต้องใช้)
   — route ทั่วไปที่เรียบง่ายยังคง `page.tsx` + `actions.ts`/`queries.ts` แบบเดิมได้โดยไม่ต้องมี
   feature module คู่กัน โดยปัจจุบัน `features/auth/` เป็น feature ข้าม route ที่มีอยู่จริง; อย่าสร้างโฟลเดอร์เปล่าเพิ่มโดยไม่มีการใช้งาน
-- **`lib/` vs `utils/`**: `lib/` ผูกกับ infra/domain เฉพาะระบบนี้ (SQLite, ฟอร์แมตเงินตาม business rule,
-  receipt processing) ส่วน `utils/` เป็น helper ทั่วไปที่ไม่รู้จัก domain
+- **`lib/` vs `utils/`**: `lib/` ผูกกับ infra/domain เฉพาะระบบนี้ (PostgreSQL, ฟอร์แมตเงินตาม
+  business rule, receipt processing) ส่วน `utils/` เป็น helper ทั่วไปที่ไม่รู้จัก domain
   เลย — ถ้าแยกไม่ออกให้เริ่มที่ `lib/` ก่อน
-- **`src/db/` + `src/lib/db.ts`**: `database.sqlite3` เป็น local SQLite db (ไม่ commit —
-  gitignored); runtime ใช้ ordered migrations ใน `src/db/migrations/` ผ่าน `schema_migrations`
-  ledger ไม่ใช่ replay `requirements/database.sql`. เข้าถึงผ่าน singleton `better-sqlite3`
-  connection ใน `src/lib/db.ts` เท่านั้น (guard ด้วย `import "server-only"` กัน import เข้า
-  Client Component โดยไม่ตั้งใจ) — เรียกใช้จาก `queries.ts`/`actions.ts` ของแต่ละ route ตามหลัก
-  colocation ด้านบน ไม่ query ตรงจากที่อื่น
+- **`src/db/` + `src/lib/db.ts`**: PostgreSQL (connection string จาก `DB_PRIMARY_DSN`); runtime ใช้
+  ordered migrations ใน `src/db/migrations/` ผ่าน `schema_migrations` ledger ไม่ใช่ replay
+  `requirements/database.sql`. เข้าถึงผ่าน singleton `pg` `Pool` ใน `src/lib/db.ts` เท่านั้น (guard
+  ด้วย `import "server-only"` กัน import เข้า Client Component โดยไม่ตั้งใจ) ผ่าน helper
+  `query`/`queryRows`/`queryRow`/`withTransaction` — เรียกใช้จาก `queries.ts`/`actions.ts` ของแต่ละ
+  route ตามหลัก colocation ด้านบน ไม่ query ตรงจากที่อื่น
 - **`contexts/`/`providers/`/`stores/` ใช้เท่าที่จำเป็นจริง**: filter/pagination อยู่ใน URL
   อยู่แล้ว อย่าสร้าง context/store ใหม่แทนสิ่งที่ส่ง prop หรือยัดใน URL ได้
 - **`components/layouts/`**: Next.js บังคับว่า root layout ต้องอยู่ที่ `src/app/layout.tsx`
@@ -184,8 +183,6 @@ next-template-starter/
   (`ci-cd.yml`/`tests.yml`) ใช้ npm ล้วน — ถ้าแก้ dependency ต้องรัน `yarn install` แล้วตามด้วย
   `npm install --package-lock-only` เพื่อให้ทั้งสอง lockfile sync กัน อย่าลบ `package-lock.json`
   ทิ้งคิดว่าเป็นไฟล์เกิน
-- `deps` stage ต้อง `apk add python3 make g++` ก่อน `npm ci` เพราะ `better-sqlite3`
-  (native addon) ต้อง compile ผ่าน `node-gyp` ซึ่ง `node:22-alpine` ไม่มี toolchain นี้มาให้
 - รัน local: `docker build -t next-template-starter .` แล้ว `docker run -p 3000:3000 next-template-starter`
 
 ## Turborepo

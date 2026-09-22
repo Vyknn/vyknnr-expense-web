@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { IconTrash } from "@tabler/icons-react";
+import { confirmDelete } from "@/lib/confirm";
 import { deleteMember, type MemberActionState } from "./actions";
 
 const initialState: MemberActionState = { status: "idle" };
@@ -18,10 +19,14 @@ export function DeleteMemberButton({
   return (
     <form
       action={formAction}
-      onSubmit={(event) => {
-        if (!confirm(`ลบสมาชิก "${memberName}" ใช่หรือไม่? การลบไม่สามารถย้อนกลับได้`)) {
-          event.preventDefault();
-        }
+      onSubmit={async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const confirmed = await confirmDelete({
+          title: `ลบสมาชิก "${memberName}" ใช่หรือไม่?`,
+          text: "การลบไม่สามารถย้อนกลับได้",
+        });
+        if (confirmed) formAction(new FormData(form));
       }}
     >
       <input type="hidden" name="memberId" value={memberId} />

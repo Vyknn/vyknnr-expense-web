@@ -62,10 +62,10 @@ test("manage expense categories and clear a deleted category from existing items
   ).toBeVisible();
 
   await page.goto("/settings/categories");
-  page.once("dialog", (dialog) => dialog.accept());
   await page
     .getByRole("button", { name: `ลบประเภท ${updatedCategoryName}` })
     .click();
+  await page.locator(".swal2-confirm").click();
   await expect(
     page.getByText(updatedCategoryName, { exact: true })
   ).toHaveCount(0);
@@ -89,9 +89,9 @@ test("delete an unused expense category", async ({ page }) => {
   await dialog.getByLabel("ชื่อประเภทค่าใช้จ่าย").fill(categoryName);
   await dialog.getByRole("button", { name: "บันทึกประเภท" }).click();
 
-  page.once("dialog", (confirmDialog) => confirmDialog.accept());
   await page
     .getByRole("button", { name: `ลบประเภท ${categoryName}` })
     .click();
+  await page.locator(".swal2-confirm").click();
   await expect(page.getByText(categoryName, { exact: true })).toHaveCount(0);
 });

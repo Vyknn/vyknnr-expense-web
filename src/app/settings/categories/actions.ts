@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { query, queryRow } from "@/lib/db";
 import { requireRole, requireUser } from "@/features/auth/services/auth";
 
 export type ExpenseCategoryActionState =
@@ -19,17 +19,17 @@ function parseExpenseCategoryName(formData: FormData): string | null {
   return name || null;
 }
 
-function expenseCategoryNameExists(name: string, excludedCategoryId?: number): boolean {
-  const category = db
-    .prepare(
-      `SELECT id
-       FROM expense_categories
-       WHERE name = ? COLLATE NOCASE
-         AND (? IS NULL OR id != ?)`
-    )
-    .get(name, excludedCategoryId ?? null, excludedCategoryId ?? null) as
-    | { id: number }
-    | undefined;
+async function expenseCategoryNameExists(
+  name: string,
+  excludedCategoryId?: number
+): Promise<boolean> {
+  const category = await queryRow<{ id: number }>(
+    `SELECT id
+     FROM expense_categories
+     WHERE LOWER(name) = LOWER($1)
+       AND ($2::int IS NULL OR id != $2)`,
+    [name, excludedCategoryId ?? null]
+  );
 
   return Boolean(category);
 }
@@ -44,7 +44,7 @@ function isUniqueConstraintError(error: unknown): boolean {
   return (
     error instanceof Error &&
     "code" in error &&
-    error.code === "SQLITE_CONSTRAINT_UNIQUE"
+    error.code === "23505"
   );
 }
 
@@ -57,12 +57,12 @@ export async function createExpenseCategory(
   if (!name) {
     return { status: "error", message: "กรุณาระบุชื่อประเภทค่าใช้จ่าย" };
   }
-  if (expenseCategoryNameExists(name)) {
+  if (await expenseCategoryNameExists(name)) {
     return { status: "error", message: "มีประเภทค่าใช้จ่ายนี้แล้ว" };
   }
 
   try {
-    db.prepare(`INSERT INTO expense_categories (name) VALUES (?)`).run(name);
+    await query(`INSERT INTO expense_categories (name) VALUES ($1)`, [name]);
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return { status: "error", message: "มีประเภทค่าใช้จ่ายนี้แล้ว" };
@@ -88,15 +88,16 @@ export async function updateExpenseCategory(
   if (!name) {
     return { status: "error", message: "กรุณาระบุชื่อประเภทค่าใช้จ่าย" };
   }
-  if (expenseCategoryNameExists(name, categoryId)) {
+  if (await expenseCategoryNameExists(name, categoryId)) {
     return { status: "error", message: "มีประเภทค่าใช้จ่ายนี้แล้ว" };
   }
 
   try {
-    const result = db
-      .prepare(`UPDATE expense_categories SET name = ? WHERE id = ?`)
-      .run(name, categoryId);
-    if (result.changes === 0) {
+    const result = await query(`UPDATE expense_categories SET name = $1 WHERE id = $2`, [
+      name,
+      categoryId,
+    ]);
+    if (result.rowCount === 0) {
       return { status: "error", message: "ไม่พบประเภทค่าใช้จ่ายที่ต้องการแก้ไข" };
     }
   } catch (error) {
@@ -120,10 +121,8 @@ export async function deleteExpenseCategory(
     return { status: "error", message: "ไม่พบประเภทค่าใช้จ่ายที่ต้องการลบ" };
   }
 
-  const result = db
-    .prepare(`DELETE FROM expense_categories WHERE id = ?`)
-    .run(categoryId);
-  if (result.changes === 0) {
+  const result = await query(`DELETE FROM expense_categories WHERE id = $1`, [categoryId]);
+  if (result.rowCount === 0) {
     return { status: "error", message: "ไม่พบประเภทค่าใช้จ่ายที่ต้องการลบ" };
   }
 

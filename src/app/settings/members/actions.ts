@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { query, withTransaction, type Transaction } from "@/lib/db";
 import { requireRole, requireUser } from "@/features/auth/services/auth";
 import { hashPassword } from "@/features/auth/services/password";
 import { revokeUserSessions } from "@/features/auth/services/session";
@@ -46,7 +46,7 @@ function isUniqueConstraintError(error: unknown): boolean {
   return (
     error instanceof Error &&
     "code" in error &&
-    error.code === "SQLITE_CONSTRAINT_UNIQUE"
+    error.code === "23505"
   );
 }
 
@@ -54,22 +54,22 @@ function revalidateMemberRoutes() {
   revalidatePath("/settings/members");
 }
 
-function hasAnotherActiveAdmin(memberId: number) {
-  const result = db
-    .prepare(
-      `SELECT COUNT(*) AS count
-       FROM users
-       WHERE role = 'admin' AND is_active = 1 AND id != ?`
-    )
-    .get(memberId) as { count: number };
+async function hasAnotherActiveAdmin(tx: Transaction, memberId: number): Promise<boolean> {
+  const result = await tx.queryRow<{ count: string }>(
+    `SELECT COUNT(*) AS count
+     FROM users
+     WHERE role = 'admin' AND is_active = 1 AND id != $1`,
+    [memberId]
+  );
 
-  return result.count > 0;
+  return Number(result?.count ?? 0) > 0;
 }
 
-function getMemberRole(memberId: number): MemberRoleRow | undefined {
-  return db
-    .prepare(`SELECT role, is_active AS isActive FROM users WHERE id = ?`)
-    .get(memberId) as MemberRoleRow | undefined;
+async function getMemberRole(tx: Transaction, memberId: number): Promise<MemberRoleRow | undefined> {
+  return tx.queryRow<MemberRoleRow>(
+    `SELECT role, is_active AS "isActive" FROM users WHERE id = $1`,
+    [memberId]
+  );
 }
 
 export async function createMember(
@@ -100,10 +100,11 @@ export async function createMember(
   }
 
   try {
-    db.prepare(
+    await query(
       `INSERT INTO users (email, display_name, password_hash, role, must_change_password, is_active)
-       VALUES (?, ?, ?, ?, 1, 1)`
-    ).run(email, displayName, hashPassword(tempPassword), role);
+       VALUES ($1, $2, $3, $4, 1, 1)`,
+      [email, displayName, hashPassword(tempPassword), role]
+    );
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return { status: "error", message: "มีอีเมลนี้ในระบบแล้ว" };
@@ -135,8 +136,8 @@ export async function updateMemberRole(
     return { status: "error", message: "ไม่สามารถเปลี่ยนสิทธิ์ของตนเองได้" };
   }
 
-  const state = db.transaction((): MemberActionState => {
-    const member = getMemberRole(memberId);
+  const state = await withTransaction(async (tx): Promise<MemberActionState> => {
+    const member = await getMemberRole(tx, memberId);
     if (!member) {
       return { status: "error", message: "ไม่พบสมาชิกที่ต้องการแก้ไข" };
     }
@@ -144,7 +145,7 @@ export async function updateMemberRole(
       member.role === "admin" &&
       member.isActive === 1 &&
       role !== "admin" &&
-      !hasAnotherActiveAdmin(memberId)
+      !(await hasAnotherActiveAdmin(tx, memberId))
     ) {
       return {
         status: "error",
@@ -152,13 +153,13 @@ export async function updateMemberRole(
       };
     }
 
-    db.prepare(`UPDATE users SET role = ?, updated_at = datetime('now') WHERE id = ?`).run(
+    await tx.query(`UPDATE users SET role = $1, updated_at = now() WHERE id = $2`, [
       role,
-      memberId
-    );
-    revokeUserSessions(memberId);
+      memberId,
+    ]);
+    await revokeUserSessions(memberId, undefined, tx);
     return { status: "success" };
-  })();
+  });
 
   if (state.status === "success") revalidateMemberRoutes();
   return state;
@@ -179,21 +180,25 @@ export async function deleteMember(
     return { status: "error", message: "ไม่สามารถลบบัญชีของตนเองได้" };
   }
 
-  const state = db.transaction((): MemberActionState => {
-    const member = getMemberRole(memberId);
+  const state = await withTransaction(async (tx): Promise<MemberActionState> => {
+    const member = await getMemberRole(tx, memberId);
     if (!member) {
       return { status: "error", message: "ไม่พบสมาชิกที่ต้องการลบ" };
     }
-    if (member.role === "admin" && member.isActive === 1 && !hasAnotherActiveAdmin(memberId)) {
+    if (
+      member.role === "admin" &&
+      member.isActive === 1 &&
+      !(await hasAnotherActiveAdmin(tx, memberId))
+    ) {
       return {
         status: "error",
         message: "ต้องมีผู้ดูแลระบบที่ใช้งานอยู่เสมออย่างน้อยหนึ่งบัญชี",
       };
     }
 
-    db.prepare(`DELETE FROM users WHERE id = ?`).run(memberId);
+    await tx.query(`DELETE FROM users WHERE id = $1`, [memberId]);
     return { status: "success" };
-  })();
+  });
 
   if (state.status === "success") {
     revalidateMemberRoutes();
@@ -223,8 +228,8 @@ export async function updateMemberStatus(
     return { status: "error", message: "ไม่สามารถปิดใช้งานบัญชีของตนเองได้" };
   }
 
-  const state = db.transaction((): MemberActionState => {
-    const member = getMemberRole(memberId);
+  const state = await withTransaction(async (tx): Promise<MemberActionState> => {
+    const member = await getMemberRole(tx, memberId);
     if (!member) {
       return { status: "error", message: "ไม่พบสมาชิกที่ต้องการแก้ไข" };
     }
@@ -232,7 +237,7 @@ export async function updateMemberStatus(
       !nextIsActive &&
       member.role === "admin" &&
       member.isActive === 1 &&
-      !hasAnotherActiveAdmin(memberId)
+      !(await hasAnotherActiveAdmin(tx, memberId))
     ) {
       return {
         status: "error",
@@ -240,13 +245,13 @@ export async function updateMemberStatus(
       };
     }
 
-    db.prepare(`UPDATE users SET is_active = ?, updated_at = datetime('now') WHERE id = ?`).run(
+    await tx.query(`UPDATE users SET is_active = $1, updated_at = now() WHERE id = $2`, [
       nextIsActive ? 1 : 0,
-      memberId
-    );
-    revokeUserSessions(memberId);
+      memberId,
+    ]);
+    await revokeUserSessions(memberId, undefined, tx);
     return { status: "success" };
-  })();
+  });
 
   if (state.status === "success") revalidateMemberRoutes();
   return state;

@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { db } from "@/lib/db";
+import { query, queryRow, queryRows, withTransaction } from "@/lib/db";
 import { compressReceiptImage } from "@/lib/receipt-image";
+import { deleteReceipts, uploadReceipt } from "@/lib/storage";
 import { requireRole, requireUser } from "@/features/auth/services/auth";
 
 export type AddExpenseItemState =
@@ -19,7 +20,7 @@ const ALLOWED_RECEIPT_TYPES = new Set([
 ]);
 
 type ValidatedReceipt = {
-  buffer: Buffer;
+  storageKey: string;
   mimeType: string;
   filename: string;
 };
@@ -36,9 +37,9 @@ function toJpegFilename(filename: string): string {
   return `${stem}.jpg`;
 }
 
-function parseExpenseFields(
+async function parseExpenseFields(
   formData: FormData
-): ParsedExpenseFields | { error: string } {
+): Promise<ParsedExpenseFields | { error: string }> {
   const description = String(formData.get("description") ?? "").trim();
   const categoryIdValue = String(formData.get("categoryId") ?? "").trim();
   const amountBaht = String(formData.get("amount") ?? "").trim();
@@ -57,9 +58,10 @@ function parseExpenseFields(
       return { error: "ประเภทค่าใช้จ่ายที่เลือกไม่ถูกต้อง" };
     }
 
-    const category = db
-      .prepare(`SELECT id FROM expense_categories WHERE id = ?`)
-      .get(parsedCategoryId) as { id: number } | undefined;
+    const category = await queryRow<{ id: number }>(
+      `SELECT id FROM expense_categories WHERE id = $1`,
+      [parsedCategoryId]
+    );
     if (!category) {
       return { error: "ไม่พบประเภทค่าใช้จ่ายที่เลือก" };
     }
@@ -74,7 +76,49 @@ function parseExpenseFields(
   return { description, categoryId, amountSatang, expenseDate };
 }
 
-function findPayerId(payerId: string): number | null {
+async function validateAndUploadReceipts(
+  files: File[],
+  roundId: number
+): Promise<ValidatedReceipt[] | { error: string }> {
+  if (files.length > MAX_RECEIPT_COUNT) {
+    return { error: `แนบไฟล์ได้ไม่เกิน ${MAX_RECEIPT_COUNT} ไฟล์ต่อรายการ` };
+  }
+
+  const receipts: ValidatedReceipt[] = [];
+  for (const file of files) {
+    if (file.size > MAX_RECEIPT_BYTES) {
+      return { error: `ไฟล์ "${file.name}" ต้องไม่เกิน 5MB` };
+    }
+    if (!ALLOWED_RECEIPT_TYPES.has(file.type)) {
+      return { error: "รองรับเฉพาะรูปภาพ JPG, PNG หรือ WEBP เท่านั้น" };
+    }
+
+    let image: Awaited<ReturnType<typeof compressReceiptImage>>;
+    try {
+      image = await compressReceiptImage(Buffer.from(await file.arrayBuffer()));
+    } catch {
+      return { error: `ไฟล์ "${file.name}" ไม่ใช่รูปภาพที่ถูกต้องหรือไฟล์เสียหาย` };
+    }
+
+    let storageKey: string;
+    try {
+      storageKey = await uploadReceipt(image.buffer, image.mimeType, roundId);
+    } catch (err) {
+      console.error(`[expense-items] อัปโหลดไฟล์ "${file.name}" ไป Cloud Storage ไม่สำเร็จ`, err);
+      return { error: "ไม่สามารถอัปโหลดไฟล์ใบเสร็จได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง" };
+    }
+
+    receipts.push({
+      storageKey,
+      mimeType: image.mimeType,
+      filename: toJpegFilename(file.name),
+    });
+  }
+
+  return receipts;
+}
+
+async function findPayerId(payerId: string): Promise<number | null> {
   if (!payerId) return null;
 
   const parsedId = Number(payerId);
@@ -82,9 +126,7 @@ function findPayerId(payerId: string): number | null {
     throw new Error("ผู้จ่ายที่เลือกไม่ถูกต้อง");
   }
 
-  const payer = db
-    .prepare(`SELECT id FROM payers WHERE id = ?`)
-    .get(parsedId) as { id: number } | undefined;
+  const payer = await queryRow<{ id: number }>(`SELECT id FROM payers WHERE id = $1`, [parsedId]);
   if (!payer) {
     throw new Error("ไม่พบผู้จ่ายที่เลือก");
   }
@@ -107,12 +149,13 @@ export async function addExpenseItem(
     return { status: "error", message: "ไม่พบรอบที่ระบุ" };
   }
 
-  const round = db
-    .prepare(`SELECT id FROM expense_rounds WHERE id = ?`)
-    .get(roundId) as { id: number } | undefined;
+  const round = await queryRow<{ id: number }>(
+    `SELECT id FROM expense_rounds WHERE id = $1`,
+    [roundId]
+  );
   if (!round) return { status: "error", message: "ไม่พบรอบที่ระบุ" };
 
-  const parsed = parseExpenseFields(formData);
+  const parsed = await parseExpenseFields(formData);
   if ("error" in parsed) {
     return { status: "error", message: parsed.error };
   }
@@ -120,7 +163,7 @@ export async function addExpenseItem(
 
   let resolvedPayerId: number | null;
   try {
-    resolvedPayerId = findPayerId(payerId);
+    resolvedPayerId = await findPayerId(payerId);
   } catch (err) {
     return {
       status: "error",
@@ -128,68 +171,29 @@ export async function addExpenseItem(
     };
   }
 
-  if (receiptFiles.length > MAX_RECEIPT_COUNT) {
-    return {
-      status: "error",
-      message: `แนบไฟล์ได้ไม่เกิน ${MAX_RECEIPT_COUNT} ไฟล์ต่อรายการ`,
-    };
+  const uploaded = await validateAndUploadReceipts(receiptFiles, roundId);
+  if ("error" in uploaded) {
+    return { status: "error", message: uploaded.error };
   }
+  const receipts = uploaded;
 
-  const receipts: ValidatedReceipt[] = [];
-  for (const file of receiptFiles) {
-    if (file.size > MAX_RECEIPT_BYTES) {
-      return { status: "error", message: `ไฟล์ "${file.name}" ต้องไม่เกิน 5MB` };
-    }
-    if (!ALLOWED_RECEIPT_TYPES.has(file.type)) {
-      return {
-        status: "error",
-        message: "รองรับเฉพาะรูปภาพ JPG, PNG หรือ WEBP เท่านั้น",
-      };
-    }
-
-    try {
-      const image = await compressReceiptImage(
-        Buffer.from(await file.arrayBuffer())
-      );
-      receipts.push({
-        buffer: image.buffer,
-        mimeType: image.mimeType,
-        filename: toJpegFilename(file.name),
-      });
-    } catch {
-      return {
-        status: "error",
-        message: `ไฟล์ "${file.name}" ไม่ใช่รูปภาพที่ถูกต้องหรือไฟล์เสียหาย`,
-      };
-    }
-  }
-
-  const insertItemWithReceipts = db.transaction(() => {
-    const result = db
-      .prepare(
-        `INSERT INTO expense_items (round_id, payer_id, category_id, description, amount_satang, expense_date)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        roundId,
-        resolvedPayerId,
-        categoryId,
-        description,
-        amountSatang,
-        expenseDate
-      );
-
-    const itemId = Number(result.lastInsertRowid);
-    const insertReceipt = db.prepare(
-      `INSERT INTO expense_item_receipts (item_id, blob, mime_type, filename)
-       VALUES (?, ?, ?, ?)`
+  await withTransaction(async (tx) => {
+    const item = await tx.queryRow<{ id: number }>(
+      `INSERT INTO expense_items (round_id, payer_id, category_id, description, amount_satang, expense_date)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id`,
+      [roundId, resolvedPayerId, categoryId, description, amountSatang, expenseDate]
     );
+    const itemId = item!.id;
+
     for (const receipt of receipts) {
-      insertReceipt.run(itemId, receipt.buffer, receipt.mimeType, receipt.filename);
+      await tx.query(
+        `INSERT INTO expense_item_receipts (item_id, storage_key, mime_type, filename)
+         VALUES ($1, $2, $3, $4)`,
+        [itemId, receipt.storageKey, receipt.mimeType, receipt.filename]
+      );
     }
   });
-
-  insertItemWithReceipts();
 
   revalidatePath(`/rounds/${roundId}`);
   revalidatePath(`/rounds/${roundId}/summary`);
@@ -210,6 +214,13 @@ export async function updateExpenseItem(
   const roundId = Number(formData.get("roundId"));
   const itemId = Number(formData.get("itemId"));
   const payerId = String(formData.get("payerId") ?? "");
+  const newReceiptFiles = formData
+    .getAll("receipts")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  const removeReceiptIds = formData
+    .getAll("removeReceiptIds")
+    .map((value) => Number(value))
+    .filter((id) => Number.isInteger(id) && id > 0);
 
   if (
     !Number.isInteger(roundId) ||
@@ -220,12 +231,13 @@ export async function updateExpenseItem(
     return { status: "error", message: "ไม่พบรายการที่ต้องการแก้ไข" };
   }
 
-  const round = db
-    .prepare(`SELECT id FROM expense_rounds WHERE id = ?`)
-    .get(roundId) as { id: number } | undefined;
+  const round = await queryRow<{ id: number }>(
+    `SELECT id FROM expense_rounds WHERE id = $1`,
+    [roundId]
+  );
   if (!round) return { status: "error", message: "ไม่พบรอบที่ระบุ" };
 
-  const parsed = parseExpenseFields(formData);
+  const parsed = await parseExpenseFields(formData);
   if ("error" in parsed) {
     return { status: "error", message: parsed.error };
   }
@@ -233,7 +245,7 @@ export async function updateExpenseItem(
 
   let resolvedPayerId: number | null;
   try {
-    resolvedPayerId = findPayerId(payerId);
+    resolvedPayerId = await findPayerId(payerId);
   } catch (err) {
     return {
       status: "error",
@@ -241,22 +253,60 @@ export async function updateExpenseItem(
     };
   }
 
-  const result = db.prepare(
-    `UPDATE expense_items
-     SET payer_id = ?, category_id = ?, description = ?, amount_satang = ?, expense_date = ?
-     WHERE id = ? AND round_id = ?`
-  ).run(
-    resolvedPayerId,
-    categoryId,
-    description,
-    amountSatang,
-    expenseDate,
-    itemId,
-    roundId
-  );
-  if (result.changes === 0) {
+  const uploaded = await validateAndUploadReceipts(newReceiptFiles, roundId);
+  if ("error" in uploaded) {
+    return { status: "error", message: uploaded.error };
+  }
+  const newReceipts = uploaded;
+
+  type UpdateItemTxResult =
+    | { found: false }
+    | { found: true; removedStorageKeys: string[] };
+
+  const txResult = await withTransaction(async (tx): Promise<UpdateItemTxResult> => {
+    const result = await tx.query(
+      `UPDATE expense_items
+       SET payer_id = $1, category_id = $2, description = $3, amount_satang = $4, expense_date = $5
+       WHERE id = $6 AND round_id = $7`,
+      [resolvedPayerId, categoryId, description, amountSatang, expenseDate, itemId, roundId]
+    );
+    if (result.rowCount === 0) {
+      return { found: false };
+    }
+
+    let removedStorageKeys: string[] = [];
+    if (removeReceiptIds.length > 0) {
+      const toRemove = await tx.queryRows<{ id: number; storageKey: string }>(
+        `SELECT id, storage_key AS "storageKey"
+         FROM expense_item_receipts
+         WHERE item_id = $1 AND id = ANY($2::int[])`,
+        [itemId, removeReceiptIds]
+      );
+      removedStorageKeys = toRemove.map((receipt) => receipt.storageKey);
+      if (toRemove.length > 0) {
+        await tx.query(
+          `DELETE FROM expense_item_receipts WHERE item_id = $1 AND id = ANY($2::int[])`,
+          [itemId, toRemove.map((receipt) => receipt.id)]
+        );
+      }
+    }
+
+    for (const receipt of newReceipts) {
+      await tx.query(
+        `INSERT INTO expense_item_receipts (item_id, storage_key, mime_type, filename)
+         VALUES ($1, $2, $3, $4)`,
+        [itemId, receipt.storageKey, receipt.mimeType, receipt.filename]
+      );
+    }
+
+    return { found: true, removedStorageKeys };
+  });
+
+  if (!txResult.found) {
     return { status: "error", message: "ไม่พบรายการที่ต้องการแก้ไข" };
   }
+
+  await deleteReceipts(txResult.removedStorageKeys);
 
   revalidatePath(`/rounds/${roundId}`);
   revalidatePath(`/rounds/${roundId}/summary`);
@@ -278,12 +328,20 @@ export async function deleteExpenseItem(
     return { status: "error", message: "ไม่พบรายการที่ต้องการลบ" };
   }
 
-  const result = db.prepare(
-    `DELETE FROM expense_items WHERE id = ? AND round_id = ?`
-  ).run(itemId, roundId);
-  if (result.changes === 0) {
+  const orphanedReceipts = await queryRows<{ storageKey: string }>(
+    `SELECT storage_key AS "storageKey" FROM expense_item_receipts WHERE item_id = $1`,
+    [itemId]
+  );
+
+  const result = await query(`DELETE FROM expense_items WHERE id = $1 AND round_id = $2`, [
+    itemId,
+    roundId,
+  ]);
+  if (result.rowCount === 0) {
     return { status: "error", message: "ไม่พบรายการที่ต้องการลบ" };
   }
+
+  await deleteReceipts(orphanedReceipts.map((r) => r.storageKey));
 
   revalidatePath(`/rounds/${roundId}`);
   revalidatePath(`/rounds/${roundId}/summary`);

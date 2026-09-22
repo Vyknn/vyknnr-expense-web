@@ -49,10 +49,10 @@ test("manage payers and clear a deleted payer from existing expense items", asyn
   await expect(page.getByText(updatedPayerName, { exact: true })).toBeVisible();
 
   await page.goto("/settings/payers");
-  page.once("dialog", (dialog) => dialog.accept());
   await page
     .getByRole("button", { name: `ลบผู้จ่าย ${updatedPayerName}` })
     .click();
+  await page.locator(".swal2-confirm").click();
   await expect(page.getByText(updatedPayerName, { exact: true })).toHaveCount(0);
 
   await page.goto(roundPath);
@@ -70,7 +70,7 @@ test("delete an unused payer", async ({ page }) => {
   await dialog.getByLabel("ชื่อผู้จ่าย/ผู้สำรอง").fill(payerName);
   await dialog.getByRole("button", { name: "บันทึกผู้จ่าย" }).click();
 
-  page.once("dialog", (confirmDialog) => confirmDialog.accept());
   await page.getByRole("button", { name: `ลบผู้จ่าย ${payerName}` }).click();
+  await page.locator(".swal2-confirm").click();
   await expect(page.getByText(payerName, { exact: true })).toHaveCount(0);
 });

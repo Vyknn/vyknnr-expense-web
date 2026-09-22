@@ -61,7 +61,7 @@ export function ReceiptGalleryModal({
                 onClick={() => setActiveReceiptId(receipt.id)}
                 className="flex aspect-square items-center justify-center overflow-hidden rounded-md border border-border bg-foreground/2 transition-opacity hover:opacity-80"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element -- DB-backed binary route, not an optimizable static asset */}
+                {/* eslint-disable-next-line @next/next/no-img-element -- GCS-backed binary route, not an optimizable static asset */}
                 <img
                   src={href}
                   alt="ใบเสร็จ"
@@ -106,7 +106,7 @@ export function ReceiptGalleryModal({
             >
               <IconX aria-hidden className="h-5 w-5" />
             </button>
-            {/* eslint-disable-next-line @next/next/no-img-element -- DB-backed binary route, not an optimizable static asset */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- GCS-backed binary route, not an optimizable static asset */}
             <img
               src={`/rounds/${roundId}/receipts/${itemId}/${activeReceiptId}`}
               alt="ใบเสร็จ"

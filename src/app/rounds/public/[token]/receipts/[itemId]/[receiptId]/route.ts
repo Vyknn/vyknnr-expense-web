@@ -1,4 +1,3 @@
-import { getCurrentUser } from "@/features/auth/services/auth";
 import { queryRow } from "@/lib/db";
 import { downloadReceipt } from "@/lib/storage";
 
@@ -12,28 +11,25 @@ export async function GET(
   _request: Request,
   {
     params,
-  }: { params: Promise<{ roundId: string; itemId: string; receiptId: string }> }
+  }: { params: Promise<{ token: string; itemId: string; receiptId: string }> }
 ) {
-  const user = await getCurrentUser();
-  if (!user) return new Response("Unauthorized", { status: 401 });
-  if (user.mustChangePassword) return new Response("Forbidden", { status: 403 });
-
-  const { roundId, itemId, receiptId } = await params;
-  const parsedRoundId = Number(roundId);
+  const { token, itemId, receiptId } = await params;
   const parsedItemId = Number(itemId);
   const parsedReceiptId = Number(receiptId);
 
-  if (![parsedRoundId, parsedItemId, parsedReceiptId].every(Number.isInteger)) {
+  if (![parsedItemId, parsedReceiptId].every(Number.isInteger)) {
     return new Response("Not found", { status: 404 });
   }
 
+  // Authorization is the share token matching the round the receipt belongs to — there is no
+  // session on this route, so this join is the only access check.
   const row = await queryRow<ReceiptRow>(
     `SELECT r.storage_key AS "storageKey", r.mime_type AS "mimeType", r.filename AS filename
      FROM expense_item_receipts r
      JOIN expense_items i ON i.id = r.item_id
      JOIN expense_rounds round ON round.id = i.round_id
-     WHERE r.id = $1 AND i.id = $2 AND round.id = $3`,
-    [parsedReceiptId, parsedItemId, parsedRoundId]
+     WHERE r.id = $1 AND i.id = $2 AND round.public_token = $3`,
+    [parsedReceiptId, parsedItemId, token]
   );
 
   if (!row) return new Response("Not found", { status: 404 });

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { IconTrash } from "@tabler/icons-react";
+import { confirmDelete } from "@/lib/confirm";
 import { deleteRound, type DeleteRoundState } from "./actions";
 
 const initialState: DeleteRoundState = { status: "idle" };
@@ -23,14 +24,14 @@ export function DeleteRoundButton({
   return (
     <form
       action={formAction}
-      onSubmit={(e) => {
-        if (
-          !confirm(
-            `ลบรอบ "${roundName}" ใช่หรือไม่? รายการค่าใช้จ่ายและใบเสร็จทั้งหมดในรอบนี้จะถูกลบไปด้วย และไม่สามารถกู้คืนได้`
-          )
-        ) {
-          e.preventDefault();
-        }
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const form = e.currentTarget;
+        const confirmed = await confirmDelete({
+          title: `ลบรอบ "${roundName}" ใช่หรือไม่?`,
+          text: "รายการค่าใช้จ่ายและใบเสร็จทั้งหมดในรอบนี้จะถูกลบไปด้วย และไม่สามารถกู้คืนได้",
+        });
+        if (confirmed) formAction(new FormData(form));
       }}
     >
       <input type="hidden" name="roundId" value={roundId} />

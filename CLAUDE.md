@@ -117,10 +117,12 @@ requires Node >=22.12.0 (stricter than Next.js's own >=20.9.0 minimum), reflecte
 `tests.yml` (Jest only — Playwright is not wired into CI yet) both trigger on push/PR to `main`
 only; there is no manual `workflow_dispatch`.
 
+The app connects to an external PostgreSQL database via `DB_PRIMARY_DSN` (see
+`requirements/TECHNICAL.md`) — `pg` is a pure-JS driver, so unlike the SQLite era this no longer
+needs a native-module compiler toolchain in the `deps` Docker stage.
+
 **Two lockfiles, intentionally.** `yarn.lock` is for local dev and the Husky hooks; `package.json`
 also has a committed `package-lock.json` used only by the `Dockerfile` (`npm ci`) and both GitHub
 Actions workflows (`npm ci`, `actions/setup-node` cache: npm) — plain `yarn` everywhere else.
 This isn't drift; don't delete either lockfile. If you change a dependency, run
-`yarn install` then `npm install --package-lock-only` to keep both in sync. The `deps` Docker
-stage also runs `apk add python3 make g++` before `npm ci` because `better-sqlite3` is a native
-addon that needs to compile via `node-gyp`, which `node:22-alpine` doesn't ship by default.
+`yarn install` then `npm install --package-lock-only` to keep both in sync.

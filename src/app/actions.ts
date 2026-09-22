@@ -1,9 +1,11 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
+import { query, queryRow, queryRows } from "@/lib/db";
 import { isRoundStatus } from "@/lib/round-status";
+import { deleteReceipts } from "@/lib/storage";
 import { requireRole, requireUser } from "@/features/auth/services/auth";
 
 export type CreateRoundState =
@@ -22,12 +24,14 @@ export async function createRound(
     return { status: "error", message: "กรุณาระบุชื่อรอบ" };
   }
 
-  const result = db
-    .prepare(`INSERT INTO expense_rounds (name, note) VALUES (?, ?)`)
-    .run(name, note || null);
+  const publicToken = randomBytes(20).toString("hex");
+  const result = await queryRow<{ id: number }>(
+    `INSERT INTO expense_rounds (name, note, public_token) VALUES ($1, $2, $3) RETURNING id`,
+    [name, note || null, publicToken]
+  );
 
   revalidatePath("/");
-  redirect(`/rounds/${result.lastInsertRowid}`);
+  redirect(`/rounds/${result!.id}`);
 }
 
 export type DeleteRoundState =
@@ -47,10 +51,20 @@ export async function deleteRound(
     return { status: "error", message: "ไม่พบรอบที่ต้องการลบ" };
   }
 
-  const result = db.prepare(`DELETE FROM expense_rounds WHERE id = ?`).run(roundId);
-  if (result.changes === 0) {
+  const orphanedReceipts = await queryRows<{ storageKey: string }>(
+    `SELECT r.storage_key AS "storageKey"
+     FROM expense_item_receipts r
+     JOIN expense_items i ON i.id = r.item_id
+     WHERE i.round_id = $1`,
+    [roundId]
+  );
+
+  const result = await query(`DELETE FROM expense_rounds WHERE id = $1`, [roundId]);
+  if (result.rowCount === 0) {
     return { status: "error", message: "ไม่พบรอบที่ต้องการลบ" };
   }
+
+  await deleteReceipts(orphanedReceipts.map((r) => r.storageKey));
 
   revalidatePath("/");
 
@@ -90,10 +104,11 @@ export async function updateRoundDetails(
     return { status: "error", message: "สถานะไม่ถูกต้อง" };
   }
 
-  const result = db.prepare(
-    `UPDATE expense_rounds SET name = ?, note = ?, status = ? WHERE id = ?`
-  ).run(name, note || null, status, roundId);
-  if (result.changes === 0) {
+  const result = await query(
+    `UPDATE expense_rounds SET name = $1, note = $2, status = $3 WHERE id = $4`,
+    [name, note || null, status, roundId]
+  );
+  if (result.rowCount === 0) {
     return { status: "error", message: "ไม่พบรอบที่ต้องการแก้ไข" };
   }
 
@@ -123,11 +138,11 @@ export async function updateRoundStatus(
     return { status: "error", message: "สถานะไม่ถูกต้อง" };
   }
 
-  const result = db.prepare(`UPDATE expense_rounds SET status = ? WHERE id = ?`).run(
+  const result = await query(`UPDATE expense_rounds SET status = $1 WHERE id = $2`, [
     newStatus,
-    roundId
-  );
-  if (result.changes === 0) {
+    roundId,
+  ]);
+  if (result.rowCount === 0) {
     return { status: "error", message: "ไม่พบรอบที่ต้องการอัปเดต" };
   }
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
+import { queryRow, withTransaction } from "@/lib/db";
 import { requireUser } from "@/features/auth/services/auth";
 import { hashPassword, verifyPassword } from "@/features/auth/services/password";
 import {
@@ -25,22 +25,26 @@ export async function changePassword(
   if (password.length < 12) return { status: "error", message: "รหัสผ่านใหม่ต้องมีอย่างน้อย 12 ตัวอักษร" };
   if (password !== confirmPassword) return { status: "error", message: "ยืนยันรหัสผ่านใหม่ไม่ตรงกัน" };
 
-  const credential = db.prepare(`SELECT password_hash AS passwordHash FROM users WHERE id = ?`).get(user.id) as { passwordHash: string } | undefined;
+  const credential = await queryRow<{ passwordHash: string }>(
+    `SELECT password_hash AS "passwordHash" FROM users WHERE id = $1`,
+    [user.id]
+  );
   if (!credential || !verifyPassword(currentPassword, credential.passwordHash)) {
     return { status: "error", message: "รหัสผ่านปัจจุบันไม่ถูกต้อง" };
   }
 
-  const session = db.transaction(() => {
-    db.prepare(
+  const session = await withTransaction(async (tx) => {
+    await tx.query(
       `UPDATE users
-       SET password_hash = ?, must_change_password = 0, failed_login_attempts = 0,
-           locked_until = NULL, updated_at = datetime('now')
-       WHERE id = ?`
-    ).run(hashPassword(password), user.id);
+       SET password_hash = $1, must_change_password = 0, failed_login_attempts = 0,
+           locked_until = NULL, updated_at = now()
+       WHERE id = $2`,
+      [hashPassword(password), user.id]
+    );
 
-    revokeUserSessions(user.id);
-    return createSession(user.id);
-  })();
+    await revokeUserSessions(user.id, undefined, tx);
+    return createSession(user.id, tx);
+  });
 
   await setSessionCookie(session.token, session.expiresAt);
   redirect("/");

@@ -5,6 +5,7 @@ import { Modal } from "@/components/modal/Modal";
 import { IconPlus } from "@tabler/icons-react";
 import { addExpenseItem, type AddExpenseItemState } from "./actions";
 import type { ExpenseCategory, Payer } from "./queries";
+import { ReceiptDropzone } from "./ReceiptDropzone";
 
 const initialState: AddExpenseItemState = { status: "idle" };
 const EMPTY_PAYER_VALUE = "";
@@ -25,6 +26,7 @@ export function AddExpenseItemModal({
   const [payerSelection, setPayerSelection] = useState<string>(
     payers[0] ? String(payers[0].id) : EMPTY_PAYER_VALUE
   );
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
     addExpenseItem,
@@ -57,9 +59,10 @@ export function AddExpenseItemModal({
           ref={formRef}
           action={formAction}
           encType="multipart/form-data"
-          onReset={() =>
-            setPayerSelection(payers[0] ? String(payers[0].id) : EMPTY_PAYER_VALUE)
-          }
+          onReset={() => {
+            setPayerSelection(payers[0] ? String(payers[0].id) : EMPTY_PAYER_VALUE);
+            setReceiptFiles([]);
+          }}
           className="flex flex-col gap-3"
         >
           <input type="hidden" name="roundId" value={roundId} />
@@ -127,16 +130,7 @@ export function AddExpenseItemModal({
             </label>
           </div>
 
-          <label className="flex flex-col gap-1 text-sm">
-            แนบบิล/สลิป (JPG, PNG, WEBP สูงสุด 10 รูป รูปละไม่เกิน 5MB)
-            <input
-              name="receipts"
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,image/webp"
-              className="text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-foreground/5 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground hover:file:bg-foreground/10"
-            />
-          </label>
+          <ReceiptDropzone label="แนบบิล/สลิป" files={receiptFiles} onChange={setReceiptFiles} />
 
           {state.status === "error" && (
             <p className="text-sm text-destructive">{state.message}</p>

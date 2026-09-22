@@ -2,9 +2,10 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { Modal } from "@/components/modal/Modal";
-import { IconPencil } from "@tabler/icons-react";
+import { IconPencil, IconX } from "@tabler/icons-react";
 import { updateExpenseItem, type UpdateExpenseItemState } from "./actions";
-import type { ExpenseCategory, ExpenseItem, Payer } from "./queries";
+import type { ExpenseCategory, ExpenseItem, Payer, Receipt } from "./queries";
+import { ReceiptDropzone } from "./ReceiptDropzone";
 
 const initialState: UpdateExpenseItemState = { status: "idle" };
 const EMPTY_PAYER_VALUE = "";
@@ -17,16 +18,20 @@ export function EditExpenseItemModal({
   item,
   payers,
   categories,
+  receipts,
 }: {
   roundId: number;
   item: ExpenseItem;
   payers: Payer[];
   categories: ExpenseCategory[];
+  receipts: Receipt[];
 }) {
   const [open, setOpen] = useState(false);
   const [payerSelection, setPayerSelection] = useState<string>(
     item.payerId ? String(item.payerId) : EMPTY_PAYER_VALUE
   );
+  const [removedReceiptIds, setRemovedReceiptIds] = useState<Set<number>>(new Set());
+  const [newReceiptFiles, setNewReceiptFiles] = useState<File[]>([]);
   const [state, formAction, pending] = useActionState(
     updateExpenseItem,
     initialState
@@ -35,11 +40,22 @@ export function EditExpenseItemModal({
   useEffect(() => {
     if (state.status === "success") {
       // useActionState's dispatch has no synchronous completion callback — this
-      // effect is the only way to sync the modal's open state to the action result.
+      // effect is the only way to sync the modal's/form's state to the action result.
       // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRemovedReceiptIds(new Set());
+      setNewReceiptFiles([]);
       setOpen(false);
     }
   }, [state]);
+
+  function toggleRemoveReceipt(receiptId: number) {
+    setRemovedReceiptIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(receiptId)) next.delete(receiptId);
+      else next.add(receiptId);
+      return next;
+    });
+  }
 
   return (
     <>
@@ -49,6 +65,8 @@ export function EditExpenseItemModal({
           setPayerSelection(
             item.payerId ? String(item.payerId) : EMPTY_PAYER_VALUE
           );
+          setRemovedReceiptIds(new Set());
+          setNewReceiptFiles([]);
           setOpen(true);
         }}
         aria-label="แก้ไขรายการนี้"
@@ -62,9 +80,12 @@ export function EditExpenseItemModal({
         onClose={() => setOpen(false)}
         title="แก้ไขรายการค่าใช้จ่าย"
       >
-        <form action={formAction} className="flex flex-col gap-3">
+        <form action={formAction} encType="multipart/form-data" className="flex flex-col gap-3">
           <input type="hidden" name="roundId" value={roundId} />
           <input type="hidden" name="itemId" value={item.id} />
+          {[...removedReceiptIds].map((receiptId) => (
+            <input key={receiptId} type="hidden" name="removeReceiptIds" value={receiptId} />
+          ))}
 
           <label className="flex flex-col gap-1 text-sm">
             รายละเอียด
@@ -133,6 +154,59 @@ export function EditExpenseItemModal({
               />
             </label>
           </div>
+
+          {receipts.length > 0 && (
+            <div className="flex flex-col gap-1 text-sm">
+              <span>ใบเสร็จเดิม</span>
+              <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {receipts.map((receipt) => {
+                  const isRemoved = removedReceiptIds.has(receipt.id);
+                  const isImage = receipt.mimeType.startsWith("image/");
+                  const href = `/rounds/${roundId}/receipts/${item.id}/${receipt.id}`;
+
+                  return (
+                    <li key={receipt.id} className="relative">
+                      <div
+                        className={`flex aspect-square items-center justify-center overflow-hidden rounded-md border border-border bg-foreground/2 transition-opacity ${
+                          isRemoved ? "opacity-30" : ""
+                        }`}
+                      >
+                        {isImage ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- GCS-backed binary route, not an optimizable static asset
+                          <img src={href} alt="ใบเสร็จ" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-xs text-muted">ไฟล์แนบ</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleRemoveReceipt(receipt.id)}
+                        aria-label={isRemoved ? "ยกเลิกการลบใบเสร็จนี้" : "ลบใบเสร็จนี้"}
+                        className={`absolute -top-1.5 -right-1.5 rounded-full p-1 shadow-sm transition-colors ${
+                          isRemoved
+                            ? "bg-muted text-white"
+                            : "bg-destructive text-white hover:bg-destructive/90"
+                        }`}
+                      >
+                        <IconX aria-hidden className="h-3 w-3" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {removedReceiptIds.size > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  จะลบใบเสร็จที่ทำเครื่องหมายไว้ {removedReceiptIds.size} ไฟล์เมื่อบันทึก
+                </p>
+              )}
+            </div>
+          )}
+
+          <ReceiptDropzone
+            label="แนบบิล/สลิปเพิ่มเติม"
+            files={newReceiptFiles}
+            onChange={setNewReceiptFiles}
+          />
 
           {state.status === "error" && (
             <p className="text-sm text-destructive">{state.message}</p>

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { IconTrash } from "@tabler/icons-react";
+import { confirmDelete } from "@/lib/confirm";
 import {
   deleteExpenseCategory,
   type ExpenseCategoryActionState,
@@ -24,14 +25,14 @@ export function DeleteCategoryButton({
   return (
     <form
       action={formAction}
-      onSubmit={(event) => {
-        if (
-          !confirm(
-            `ลบประเภทค่าใช้จ่าย "${categoryName}" ใช่หรือไม่? รายการเดิมจะยังอยู่ แต่จะแสดงเป็นไม่ระบุประเภท`
-          )
-        ) {
-          event.preventDefault();
-        }
+      onSubmit={async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const confirmed = await confirmDelete({
+          title: `ลบประเภทค่าใช้จ่าย "${categoryName}" ใช่หรือไม่?`,
+          text: "รายการเดิมจะยังอยู่ แต่จะแสดงเป็นไม่ระบุประเภท",
+        });
+        if (confirmed) formAction(new FormData(form));
       }}
     >
       <input type="hidden" name="categoryId" value={categoryId} />

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { IconTrash } from "@tabler/icons-react";
+import { confirmDelete } from "@/lib/confirm";
 import { deletePayer, type PayerActionState } from "./actions";
 
 const initialState: PayerActionState = { status: "idle" };
@@ -18,14 +19,14 @@ export function DeletePayerButton({
   return (
     <form
       action={formAction}
-      onSubmit={(event) => {
-        if (
-          !confirm(
-            `ลบผู้จ่าย/ผู้สำรอง "${payerName}" ใช่หรือไม่? รายการค่าใช้จ่ายเดิมจะยังอยู่ แต่จะแสดงเป็นไม่ระบุผู้จ่าย`
-          )
-        ) {
-          event.preventDefault();
-        }
+      onSubmit={async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const confirmed = await confirmDelete({
+          title: `ลบผู้จ่าย/ผู้สำรอง "${payerName}" ใช่หรือไม่?`,
+          text: "รายการค่าใช้จ่ายเดิมจะยังอยู่ แต่จะแสดงเป็นไม่ระบุผู้จ่าย",
+        });
+        if (confirmed) formAction(new FormData(form));
       }}
     >
       <input type="hidden" name="payerId" value={payerId} />

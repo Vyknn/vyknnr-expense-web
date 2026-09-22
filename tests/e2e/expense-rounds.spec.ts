@@ -97,8 +97,8 @@ test("create a round, add an expense item with multiple receipts, and view them 
   await expect(page.getByRole("heading", { name: roundName })).toBeVisible();
 
   // Delete the round from the detail page and confirm it redirects home and disappears.
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: `ลบรอบ ${roundName}` }).click();
+  await page.locator(".swal2-confirm").click();
 
   await expect(page).toHaveURL("/");
   await expect(page.getByText(roundName)).toHaveCount(0);
@@ -131,8 +131,8 @@ test("edit a round's name, note, and status", async ({ page }) => {
   await page.getByRole("link", { name: "กลับหน้ารายการรอบ" }).click();
   await expect(page.getByRole("link", { name: updatedName })).toBeVisible();
 
-  page.once("dialog", (confirmDialog) => confirmDialog.accept());
   await page.getByRole("button", { name: `ลบรอบ ${updatedName}` }).click();
+  await page.locator(".swal2-confirm").click();
 });
 
 test("delete a round directly from the round list", async ({ page }) => {
@@ -147,8 +147,8 @@ test("delete a round directly from the round list", async ({ page }) => {
   await page.getByRole("link", { name: "กลับหน้ารายการรอบ" }).click();
   await expect(page.getByRole("link", { name: roundName })).toBeVisible();
 
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: `ลบรอบ ${roundName}` }).click();
+  await page.locator(".swal2-confirm").click();
 
   await expect(page).toHaveURL("/");
   await expect(page.getByRole("link", { name: roundName })).toHaveCount(0);
@@ -184,7 +184,7 @@ test("a new round defaults to in-progress status and its status can be changed",
     listRow.getByRole("combobox", { name: "สถานะรอบ" })
   ).toHaveCount(0);
 
-  page.once("dialog", (dialog) => dialog.accept());
   await listRow.getByRole("button", { name: `ลบรอบ ${roundName}` }).click();
+  await page.locator(".swal2-confirm").click();
   await expect(page.getByRole("link", { name: roundName })).toHaveCount(0);
 });

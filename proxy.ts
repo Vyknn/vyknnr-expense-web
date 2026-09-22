@@ -2,12 +2,18 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME } from "@/features/auth/constants";
 
 const PUBLIC_PATHS = new Set(["/login", "/change-password"]);
+// Share-link view: read-only, gated by an opaque token in the URL instead of a session.
+const PUBLIC_PATH_PREFIXES = ["/rounds/public/"];
+
+function isPublicPath(pathname: string) {
+  return PUBLIC_PATHS.has(pathname) || PUBLIC_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const hasSession = Boolean(request.cookies.get(SESSION_COOKIE_NAME)?.value);
 
-  if (PUBLIC_PATHS.has(pathname)) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 

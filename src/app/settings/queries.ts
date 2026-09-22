@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/lib/db";
+import { queryRow } from "@/lib/db";
 import { requireUser } from "@/features/auth/services/auth";
 
 export type SettingsOverviewCounts = {
@@ -10,8 +10,14 @@ export type SettingsOverviewCounts = {
 
 export async function getSettingsOverviewCounts(): Promise<SettingsOverviewCounts> {
   await requireUser();
-  const payerCount = (db.prepare(`SELECT COUNT(*) AS count FROM payers`).get() as { count: number }).count;
-  const categoryCount = (db.prepare(`SELECT COUNT(*) AS count FROM expense_categories`).get() as { count: number }).count;
-  const memberCount = (db.prepare(`SELECT COUNT(*) AS count FROM users`).get() as { count: number }).count;
-  return { payerCount, categoryCount, memberCount };
+  const payerCount = (await queryRow<{ count: string }>(`SELECT COUNT(*) AS count FROM payers`))!;
+  const categoryCount = (await queryRow<{ count: string }>(
+    `SELECT COUNT(*) AS count FROM expense_categories`
+  ))!;
+  const memberCount = (await queryRow<{ count: string }>(`SELECT COUNT(*) AS count FROM users`))!;
+  return {
+    payerCount: Number(payerCount.count),
+    categoryCount: Number(categoryCount.count),
+    memberCount: Number(memberCount.count),
+  };
 }
